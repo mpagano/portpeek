@@ -1,0 +1,79 @@
+.TH "PORTPEEK" "1" "Aug 2009"
+.SH "NAME"
+portpeek \- Package (un)masking management script
+.SH "SYNOPSIS"
+.TP
+.BR portpeek
+[\fIoptions\fR] \fIcommand\fR 
+.TP
+.BR portpeek
+\fB\-\-keyword\fR | \fB\-\-unmask\fR | \fB\-\-mask\fR | \fB\-\-package\-use\fR | \fB\-\-all
+.TP
+.BR portpeek
+\fB\-\-changes-only\fR [\fB--keyword\fR | \fB\-\-unmask\fR | \fB\-\-mask\fR | \fB\-\-package\-use\fR | \fB\-\-all]
+.SH "DESCRIPTION"
+\fBportpeek\fR is a utility script that will process a system's package.*
+files and display to the user potential package upgrades. Along with displaying
+the installed packages and the versions that the package could be upgraded to,
+the keywords for each specific package will also be displayed.
+Results are colorcoded for readability.
+.SH "OPTIONS"
+The 'command' is the only mandatory option to \fBportpeek\fR.
+
+[options] may only be:
+
+.B \-c, \-\-changes-only:
+show only packages that have a possible upgrade
+.PP
+.B \-n, \-\-no-color:
+suppress color output 
+.PP
+.B \-r, \-\-removable-only:
+show all matches that can be removed from package files
+.PP
+.B \-f \-\-fix:
+remove the stabled packages without asking for confirmation
+.PP
+.B \-d \-\-debug:
+display more verbose output for debugging
+.PP
+Except for version information, commands can be combined.  The possible commands are:
+
+.B \-a, \-\-all
+show all matches
+.PP
+.B \-h, \-\-help
+displays a help summary
+.PP
+.B \-k, \-\-keyword
+show matches from package.keywords only
+.PP
+.B \-m, \-\-mask
+show matches from package.mask only
+.PP
+.B \-u, \-\-unmask
+show matches from package.unmask only
+.PP
+.B \-s, \-\-package.use
+show matches from package.use only
+.PP
+.B \-t, \-\-tilde-check
+process tilde entries ~(cat/pkg-version) 
+.PP
+.B \-V, \-\-version
+displays the equery version
+.PP
+
+.SH "EXAMPLES"
+
+portpeek \-\-changes-only \-\-keyword \- list all packages with a potential upgrade located in package.keywords
+
+portpeek \-\-unmask \- list all packages and their keywords currently listed in package.unmask
+
+portpeek \-ac \- list all packages and keywords from all package.* files
+
+portpeek \-arf \- list all packages which are stable and can be removed and then remove them automatically
+
+.SH "AUTHORS"
+.nf
+Michael Pagano <mpagano@gentoo.org>
