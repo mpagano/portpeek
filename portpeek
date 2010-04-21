@@ -16,14 +16,15 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.0"
+__version__ = "2.0.1"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
 import sys, os, portage.output, string, fileinput
 
 
-import gentoolkit, gentoolkit.helpers,gentoolkit.package,gentoolkit.versionmatch,gentoolkit.query
+import gentoolkit,gentoolkit.helpers,gentoolkit.package,gentoolkit.versionmatch,gentoolkit.query
+from gentoolkit import errors
 
 from gentoolkit.versionmatch import VersionMatch
 from portage.const import USER_CONFIG_PATH
@@ -619,7 +620,14 @@ def show_all_versions(pkg):
                     is_package_masked = True
 
     query = Query(package)
-    all_pkgs = query.smart_find(True,True,True,True,False,True)
+
+    all_pkgs = []
+
+    try:
+        all_pkgs = query.smart_find(True,True,True,True,False,True)
+    except errors.GentoolkitException as err:
+        print_output(debug,portage.output.blue("Package " + package + " not found."))
+
     for current_package in all_pkgs:
         keywords = "%s" % (current_package.environment("KEYWORDS").split())
         keywords = filter_keywords(keywords)
