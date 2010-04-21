@@ -136,7 +136,7 @@ def get_keywords(package, var):
     filtered_keywords = ""
     try:
         keywords = package.environment("KEYWORDS").split()
-    except (KeyError, error):
+    except KeyError as error:
         print ("!!! Portpeek caught Exception:", error)
         print ("!!! This package/version seems to be no longer available, " + \
         "please check and update/unmerge it") 
@@ -189,7 +189,13 @@ def parse_line(line, filename):
         if package_exists:
 			# return a Package List based on the cpv
             query = Query(fields[0])
-            pkgs = query.smart_find(True,True,True,True,False,True)
+            pkgs = []
+
+            try:
+                pkgs = query.smart_find(True,True,True,True,False,True)
+            except errors.GentoolkitException as err:
+                pass
+
             if (pkgs != None):
                 pkg_length = len(pkgs)
                 not_installed_pkgs = 0
@@ -276,7 +282,14 @@ def parse_line(line, filename):
 
 					# go through all versions of a package
                     query = Query(current_package.category + "/" + current_package.name)
-                    all_pkgs = query.smart_find(True,True,True,True,False,True)
+
+                    all_pkgs = []
+
+                    try:
+                        all_pkgs = query.smart_find(True,True,True,True,False,True)
+                    except errors.GentoolkitException as err:
+                        print_output(debug,portage.output.blue("Package " + current_package.category + "/" + current_package.name + " not found."))
+
                     for a_package in all_pkgs:
                         if not a_package.is_installed():
 							# a_package is not installed
@@ -396,7 +409,12 @@ def parse_package_use(line, filename):
         if package_exists:
             # get all package versions
             query = Query(check_pkg)
-            pkgs = query.smart_find(True,True,True,True,False,True)
+            pkgs = []
+            try:
+                pkgs = query.smart_find(True,True,True,True,False,True)
+            except errors.GentoolkitException as err:
+                print_output(debug,portage.output.blue("Package " + check_pkg + " not found."))
+
             if (pkgs != None):
                 pkg_length = len(pkgs)
 
@@ -531,7 +549,13 @@ def check_tilde_masked_pkg(package_name, filename):
     print_output(debug,portage.output.blue("check_tilde_maskd_pkg: package_name is " + package_name))
 
     query = Query(package_name+"*", True)
-    packages = query.smart_find(True,True,True,True,False,True)
+
+    packages = []
+    try:
+        packages = query.smart_find(True,True,True,True,False,True)
+    except errors.GentoolkitException as err:
+        print_output(debug,portage.output.blue("Package " + package_name + " not found."))
+
     no_versions_installed = True
     for package in packages:
         if package.is_installed():
@@ -549,7 +573,12 @@ def check_tilde_masked_pkg(package_name, filename):
 
     # get all packages matching cat/package
     query = Query(package_name+"*", True)
-    pkgs = query.smart_find(True,True,True,True,False,True)
+    pkgs = []
+    try:
+        pkgs = query.smart_find(True,True,True,True,False,True)
+    except errors.GentoolkitException as err:
+        print_output(debug,portage.output.blue("Package " + package_name + " not found."))
+
     if (pkgs != None):
         for current_package in pkgs:
             print_output(debug,portage.output.blue("check_tilde_maskd_pkg: current_package is " + str(current_package.cpv)))
@@ -654,7 +683,7 @@ def handle_if_overlay(package):
     index = -1
     try:
         index = overlay_list.index(overlay_path)
-    except (ValueError,error):
+    except ValueError as error:
         overlay_list.append(overlay_path)
         index = overlay_list.index(overlay_path)
 
@@ -758,7 +787,7 @@ def cleanFile (filename):
                 if (itemFound == False):
                     print (line)
             fileinput.close()
-    except (OSError,error):
+    except OSError as error:
         print (portage.output.red("Modify/Read access to file: " + filename + " failed: ") ,error)
     
     if (len(removed_list) > 0):
@@ -806,7 +835,7 @@ if __name__ == "__main__":
             try:
                 i = options.index(cmd)
                 continue
-            except (ValueError):
+            except ValueError:
                 print ("!!! Error: -"+cmd+" is an invalid option.")
                 sys.exit(-1)
 
