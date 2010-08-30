@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.1"
+__version__ = "2.0.2"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -491,8 +491,9 @@ def is_pkg_package_masked(cpv):
         raise KeyError("CPV %s does not exist" % cpv)
     mycp = mysplit[0] + "/" + mysplit[1]
 
-    if mycp in settings.pmaskdict:
-        for package in settings.pmaskdict[mycp]:
+    pmaskdict = settings._mask_manager._pmaskdict
+    if mycp in pmaskdict:
+        for package in pmaskdict[mycp]:
             if cpv in portage.portdb.xmatch("match-all", package):
                 return True
                 
@@ -639,8 +640,9 @@ def show_all_versions(pkg):
     # package is category/package and pkg is category/package-version
     # is category/package-version we are checking package masked?
     #if portage.settings.pmaskdict.has_key(package):
-    if package in portage.settings.pmaskdict:
-        pkg_list = portage.settings.pmaskdict.get(package)
+    pmaskdict = settings._mask_manager._pmaskdict
+    if package in pmaskdict:
+        pkg_list = pmaskdict.get(package)
         # iterate through list array looking for pkg
         for pkg_check in pkg_list:
             operator = portage.get_operator(pkg_check)
