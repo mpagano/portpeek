@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.2"
+__version__ = "2.0.5"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -739,20 +739,16 @@ def cleanFile (filename):
     # if the file or directory does not exist
     # exit out
     if (os.path.exists(filename) == False):
-            return
+        return
     
     if "package.keywords" in filename:
         if ( len(stable_list) == 0):
             return
-        for i in stable_list:
-            if not removeDups.count(i):
-                removeDups.append(i)
+        removeDups = stable_list
     else:
         if ( len(unmask_list) == 0):
             return
-        for i in unmask_list:
-            if not removeDups.count(i):
-                removeDups.append(i)
+        removeDups = unmask_list
 
     removedDict = {}
 
@@ -763,6 +759,7 @@ def cleanFile (filename):
             filenames = os.listdir(filename)
             for file_name in filenames:
                 cleanFile(filename+os.path.sep+file_name)
+            return
         else:   
             #go through stable array and remove line if found
             for line in fileinput.input(filename,inplace =1):
@@ -778,14 +775,11 @@ def cleanFile (filename):
 
                 for item in removeDups:
                     if item in line:
-                        dup_found = False
-                        for check_item in removed_list:
-                            if (check_item == item):
-                                dup_found = True
-                        if (dup_found == False):
-                            removed_list.append(item)
-                            removedDict[filename] = item
-                            itemFound = True
+                        removed_list.append(item)
+                        removedDict[filename] = item
+                        itemFound = True
+                        removeDups.pop(removeDups.index(item))
+                        break
                 if (itemFound == False):
                     print (line)
             fileinput.close()
