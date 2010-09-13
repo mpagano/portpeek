@@ -46,7 +46,7 @@ show all matches
 displays a help summary
 .PP
 .B \-k, \-\-keyword
-show matches from package.keywords only
+show matches from package.keywords and package.accept_keywords only
 .PP
 .B \-m, \-\-mask
 show matches from package.mask only
@@ -66,7 +66,7 @@ displays the equery version
 
 .SH "EXAMPLES"
 
-portpeek \-\-changes-only \-\-keyword \- list all packages with a potential upgrade located in package.keywords
+portpeek \-\-changes-only \-\-keyword \- list all packages with a potential upgrade located in package.keywords or package.accept_keywords
 
 portpeek \-\-unmask \- list all packages and their keywords currently listed in package.unmask
 
