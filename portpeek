@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.5"
+__version__ = "2.0.7"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -342,7 +342,7 @@ def parse_line(line, filename):
             if "package.accept_keywords" in filename:
                 stable_listNg.append(fields[0])
             unmask_list.append(fields[0])
-            show_all_versions(fields[0])
+            show_all_versions(fields[0], filename)
     current_package = ""
 
     return diffs_found
@@ -912,11 +912,11 @@ if __name__ == "__main__":
             if "--fix" in cmdline:
                 cleanFile(USER_CONFIG_PATH + "/package.keywords")
             print (portage.output.bold("Done\n"))
-            print portage.output.bold("\npackage.accept_keywords:")
+            print (portage.output.bold("\npackage.accept_keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.accept_keywords")
             if "--fix" in cmdline:
                 cleanFile(USER_CONFIG_PATH + "/package.accept_keywords")
-            print portage.output.bold("Done\n")
+            print (portage.output.bold("Done\n"))
         elif cmd == "--unmask": 
             print (portage.output.bold("\npackage.unmask:"))
             checking_package_unmask = True
@@ -942,7 +942,7 @@ if __name__ == "__main__":
         elif cmd == "--all":
             print (portage.output.bold("\npackage.keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.keywords")
-            print portage.output.bold("\npackage.accept_keywords:")
+            print (portage.output.bold("\npackage.accept_keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.accept_keywords")
             print (portage.output.bold("\npackage.unmask:"))
             checking_package_unmask = True
