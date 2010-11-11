@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.7"
+__version__ = "2.0.8"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -530,7 +530,10 @@ def filter_keywords(keywords):
         key = str.replace(key, "]", "")
         key = str.replace(key, ",", "")
         arch=settings["ARCH"]
-        if key.rfind(arch) != -1:
+
+        # remove '~' from key for comparison
+        key_comparison = key.lstrip('~')
+        if key_comparison == arch:
             if len(filtered_keywords) != 0:
                 filtered_keywords = filtered_keywords + " "
             filtered_keywords = filtered_keywords + key
