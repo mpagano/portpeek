@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.8"
+__version__ = "2.0.9"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -599,20 +599,12 @@ def check_tilde_masked_pkg(package_name, filename):
         return
 
     # get all packages matching cat/package
-    query = Query(package_name+"*", True)
-    pkgs = []
-    try:
-        pkgs = query.smart_find(True,True,True,True,False,True)
-    except errors.GentoolkitException as err:
-        print_output(debug,portage.output.blue("Package " + package_name + " not found."))
-
-    if (pkgs != None):
-        for current_package in pkgs:
+    if (packages != None):
+        for current_package in packages:
             print_output(debug,portage.output.blue("check_tilde_maskd_pkg: current_package is " + str(current_package.cpv)))
             print_output(debug,portage.output.blue("comparing " + package_name + " to " + str(current_package.cpv)))
-            #if (compare_package_strings(package_name,str(current_package.cpv)) <=0):
-            if (pkgcmp(package_name, str(current_package.cpv)) <= 0):
-                #if (pkgcmp(pkgsplit('test-1.0-r1'),pkgsplit('test-1.2-r3'))
+            if (pkgcmp(pkgsplit(package_name),pkgsplit(str(current_package.cpv))) <=0 ):
+            #if (pkgcmp(package_name, str(current_package.cpv)) <= 0):
                 packageObj = gentoolkit.package.Package(str(current_package.cpv))
                 if (packageObj == None):
                     # we could not create a package object
