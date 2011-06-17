@@ -20,17 +20,11 @@ __version__ = "2.0.10"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
-import sys, os, portage.output, string, fileinput
-
-
-import gentoolkit,gentoolkit.helpers,gentoolkit.package,gentoolkit.versionmatch,gentoolkit.query
-from gentoolkit import errors
-
+import sys, os, portage.output, fileinput
+#import gentoolkit,gentoolkit.helpers,gentoolkit.package,gentoolkit.versionmatch,gentoolkit.query
 from gentoolkit.versionmatch import VersionMatch
 from portage.const import USER_CONFIG_PATH
 from portage.versions import catpkgsplit,pkgcmp,pkgsplit
-from portage import best
-import portage.exception
 from portage.exception import InvalidAtom
 from gentoolkit.cpv import CPV
 from gentoolkit.query import Query
@@ -509,7 +503,8 @@ def is_pkg_package_masked(cpv):
     if not mysplit:
         raise ValueError("invalid CPV: %s" % cpv)
     if not portage.portdb.cpv_exists(cpv):
-        raise KeyError("CPV %s does not exist" % cpv)
+        return False
+
     mycp = mysplit[0] + "/" + mysplit[1]
 
     pmaskdict = settings._mask_manager._pmaskdict
@@ -526,9 +521,9 @@ def filter_keywords(keywords):
 
     #for key in key_list:
     for key in keywords:
-        key = str.replace(key, "[", "")
-        key = str.replace(key, "]", "")
-        key = str.replace(key, ",", "")
+        key = key.replace("[", '')
+        key = key.replace("]", "")
+        key = key.replace(",", "")
         arch=settings["ARCH"]
 
         # remove '~' from key for comparison
@@ -682,7 +677,7 @@ def show_all_versions(pkg, filename):
     for current_package in all_pkgs:
         keywords = "%s" % (current_package.environment("KEYWORDS").split())
         keywords = filter_keywords(keywords)
-        keywords = "[" + keywords + "]"
+        keywords = "[%s]" % (keywords)
         ebuild = current_package.ebuild_path()
         if ebuild:
             pkgmask = _get_mask_status(current_package, True)
@@ -712,7 +707,8 @@ def handle_if_overlay(package):
         overlay_list.append(overlay_path)
         index = overlay_list.index(overlay_path)
 
-    overlay_text = " [" + str(index+1) + "]"
+#    overlay_text = " [" + str(index+1) + "]"
+    overlay_text = " [%s]" % (str(index+1))
 
     return overlay_text
 
@@ -743,10 +739,12 @@ def print_output(log_level,output_string, package=None, filename=None):
 
     if package != None:
         if (package.is_overlay()):
-            output_string = output_string + portage.output.turquoise(handle_if_overlay(package))
+            output_string = "%s%s" % (output_string,portage.output.turquoise(handle_if_overlay(package)))
+            #output_string = output_string + portage.output.turquoise(handle_if_overlay(package))
         else:
             if filename != None:
-                output_string = output_string + portage.output.brown(" : " + filename)
+                output_string = "%s%s" % (output_string,portage.output.brown(" : " + filename))
+                #output_string = output_string + portage.output.brown(" : " + filename)
 
     if (log_level <= logLevel):
         print (output_string)
@@ -818,15 +816,6 @@ def cleanFile (filename):
         for package in removed_list:
             print (portage.output.red("Removing from: ") + portage.output.yellow(filename) + ": " + portage.output.green(package) + "\n")
 
-
-# thanks to Paul Varner (Fuzzyray)
-#Returns the list ordered in the same way portage 
-#would do with lowest version at the head of the list.
-def sort_package_list(pkglist):
-    from gentoolkit.package import Package
-    pkglist.sort()
-    return pkglist
-            
 # main
 if __name__ == "__main__":
 
