@@ -367,6 +367,8 @@ def get_info(filename):
                 continue
             elif line.find("#") >= 0:
                 # found '#' remove comment
+                if (skipFile(line,filename)):
+                    return
                 line = line[0:line.find("#")]
                 line = line.strip()
                 if len(line) <= 0:
@@ -386,6 +388,19 @@ def get_info(filename):
     # close file
     if (filedescriptor != None):
         filedescriptor.close()
+
+# skip the file if portpeek-skip found in a comment
+# you can put this in the middle of a file and it will
+#skip all entrie below it, this is useful to speed things
+#up by not checking ~kde versions, for example
+def skipFile (line, filename):
+    if ( (line == None) or (filename == None)):
+        return False
+
+    if line.find("portpeek-skip") >= 0:
+        return True
+
+    return False
 
 # parse the package.use file and look for packages
 # not installed

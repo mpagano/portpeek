@@ -64,6 +64,9 @@ process tilde entries ~(cat/pkg-version)
 displays the equery version
 .PP
 
+.SH "OTHER OPTIONS"
+Putting the words "portpeek-skip" with or without quotes on a comment line will make portpeek skip the rest of the file. This is useful, for example, if one has a separate KDE keywords file with many lines of the form: ~kde-base/kde-program.  These tend to take awhile to process and might be a file you don't want analyzed for every portpeek call.
+
 .SH "EXAMPLES"
 
 portpeek \-\-changes-only \-\-keyword \- list all packages with a potential upgrade located in package.keywords or package.accept_keywords
