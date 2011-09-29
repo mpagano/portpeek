@@ -16,13 +16,13 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.10"
+__version__ = "2.0.11"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
 import sys, os, portage.output, fileinput
 #import gentoolkit,gentoolkit.helpers,gentoolkit.package,gentoolkit.versionmatch,gentoolkit.query
-from gentoolkit.versionmatch import VersionMatch
+from gentoolkit.versionmatch import VersionMatch,errors
 from portage.const import USER_CONFIG_PATH
 from portage.versions import catpkgsplit,pkgcmp,pkgsplit
 from portage.exception import InvalidAtom
@@ -45,6 +45,7 @@ stable_listNg = [] # handle package.accept_keywords
 unmask_list = []
 tilde = 0
 processing_package_use = False
+using_gentoo_as_overlay = False
 
 try:
     PORTAGE_CONFIGROOT
@@ -93,6 +94,8 @@ overlays = [settings["PORTDIR_OVERLAY"]]
 
 if len(overlays) > 0:
     overlay_list = overlays[0].split(" ")
+    for j in overlay_list:
+        print ("overlay: " + j)
 
 def print_usage():
     # Print full usage information for this tool to the console.
@@ -146,7 +149,9 @@ def get_keywords(package, var):
 # this is the main function for portpeek
 # TODO comment this code!
 def parse_line(line, filename):     
-    global info,debug
+    global info,debug,using_gentoo_as_overlay
+
+    using_gentoo_as_overlay = False
     pkgs = None
     ebuild_output = ""
     check_pkg = ""
@@ -163,11 +168,21 @@ def parse_line(line, filename):
     display_done = False
 
     fields = line.replace("\t", " ").split(" ")
+
     if len(fields) > 0:
         #if the line does not start with an atom such as (= or >), do not validate 
         #status as this tool is for check specific versions and not entire packages 
         # a ~cpv should be handled like an =cpv if requested bythe parameter -t
         check_pkg = fields[0] # this should be one of <>=~
+        overlay_index = check_pkg.find("::")
+        if ( overlay_index >= 0):
+            overlay_list = check_pkg.rsplit("::")
+            if (len(overlay_list) > 0):
+                overlay_name = overlay_list[1]
+                if (overlay_name == "gentoo"):
+                    using_gentoo_as_overlay = True
+            check_pkg = check_pkg[0:check_pkg.find("::")]
+
         if check_pkg[0] not in atom_check:
             return
         if (tilde == 1):
@@ -175,15 +190,16 @@ def parse_line(line, filename):
                 check_tilde_masked_pkg(check_pkg, filename)
                 return
 
-		# determine if the package exists
+        # determine if the package exists
         try:
             package_exists = portage.portdb.xmatch("match-all", fields[0])
         except InvalidAtom:
             package_exists = False
 
         if package_exists:
-			# return a Package List based on the cpv
-            query = Query(fields[0])
+            # return a Package List based on the cpv
+            query = Query(check_pkg)
+            #query = Query(fields[0])
             pkgs = []
 
             try:
@@ -316,6 +332,13 @@ def parse_line(line, filename):
                                         print_output (info,"\n" + ebuild_output,current_package)
                                         ebuild_search_key_printed = True
                                         print_output(info,portage.output.green("Available: " + str(a_package.cpv) + " Keywords: " + keywords),a_package)
+                #else:
+                    #print (portage.output.red ("\nCannot find package: " + check_pkg))
+
+                # if package does not exist, and current_package is None
+                # then make package using fields[0]
+                # mike
+
                 # display if pkg/cat is not installed (missing version)
                 if not_installed_pkgs ==  pkg_length:
                     if not display_done:
@@ -709,9 +732,14 @@ def show_all_versions(pkg, filename):
                 if "package.accept_keywords" in filename:
                     stable_listNg.append(str(current_package.cpv))
 
+# mike
 def handle_if_overlay(package):
     overlay_text = ""
-    global print_overlay_flag
+    global print_overlay_flag,using_gentoo_as_overlay
+
+    if (using_gentoo_as_overlay):
+        return overlay_text
+
     print_overlay_flag = True
 
     ebuild_path,overlay_path = porttree.dbapi.findname2(str(package.cpv))
@@ -722,7 +750,6 @@ def handle_if_overlay(package):
         overlay_list.append(overlay_path)
         index = overlay_list.index(overlay_path)
 
-#    overlay_text = " [" + str(index+1) + "]"
     overlay_text = " [%s]" % (str(index+1))
 
     return overlay_text
