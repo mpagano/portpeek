@@ -92,11 +92,6 @@ mappings = {
 cmdline = []
 overlays = [settings["PORTDIR_OVERLAY"]]
 
-if len(overlays) > 0:
-    overlay_list = overlays[0].split(" ")
-    for j in overlay_list:
-        print ("overlay: " + j)
-
 def print_usage():
     # Print full usage information for this tool to the console.
     print ("\nUsage: " + portage.output.turquoise(__productname__) +  portage.output.yellow(" command "))
@@ -337,7 +332,6 @@ def parse_line(line, filename):
 
                 # if package does not exist, and current_package is None
                 # then make package using fields[0]
-                # mike
 
                 # display if pkg/cat is not installed (missing version)
                 if not_installed_pkgs ==  pkg_length:
@@ -412,19 +406,6 @@ def get_info(filename):
     if (filedescriptor != None):
         filedescriptor.close()
 
-# skip the file if portpeek-skip found in a comment
-# you can put this in the middle of a file and it will
-#skip all entrie below it, this is useful to speed things
-#up by not checking ~kde versions, for example
-def skipFile (line, filename):
-    if ( (line == None) or (filename == None)):
-        return False
-
-    if line.find("portpeek-skip") >= 0:
-        return True
-
-    return False
-
 # parse the package.use file and look for packages
 # not installed
 def parse_package_use(line, filename):
@@ -447,59 +428,191 @@ def parse_package_use(line, filename):
         else:
             check_pkg = check_pkg[1:]
 
-        # look for any version of check_pkg installed as there is 
-        # no version specified in package.use
-        package_exists = portage.portdb.xmatch("match-all", check_pkg)
-        if package_exists:
-            # get all package versions
+
+        # if there is a wildcard, check to make sure at least one
+        # of the packages is installed
+        if check_pkg.find("/*") >= 0:
             query = Query(check_pkg)
             pkgs = []
             try:
                 pkgs = query.smart_find(True,True,True,True,False,True)
             except errors.GentoolkitException as err:
-                print_output(debug,portage.output.blue("Package " + check_pkg + " not found."))
+                print_output(debug,portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
+                return False
 
             if (pkgs != None):
                 pkg_length = len(pkgs)
-
-                # go through each package version for a specific version found above
-                if (has_atom == False):
-                    for current_package in pkgs:
-                        if current_package.is_installed():
-                            package_installed = True
-                else: 
-                    # go through each package version for a specific version found above
-                    for current_package in pkgs:
-                        if (str(current_package.cpv) == check_pkg):
-                            if not current_package.is_installed():
-                                print_output(info,portage.output.green("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
-                                if "package.keywords" in filename:
-                                    stable_list.append(check_pkg)
-                                if "package.accept_keywords" in filename:
-                                    stable_listNg.append(check_pkg)
-                                unmask_list.append(check_pkg)
-                                return True
-                            else:
-                                return False
+            for current_package in pkgs:
+                # on wildcard scenario, return False if one package is installed
+                if current_package.is_installed():
+                    return False
         else:
-            print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
-            if "package.keywords" in filename:
-                stable_list.append(check_pkg)
-            if "package.accept_keywords" in filename:
-                stable_listNg.append(check_pkg)
-            unmask_list.append(check_pkg)
-            return True
-        if (package_installed == False):
-            # package does not exists
-            print_output(info,portage.output.green("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
-            if "package.keywords" in filename:
-                stable_list.append(check_pkg)
-            if "package.accept_keywords" in filename:
-                stable_listNg.append(check_pkg)
-            unmask_list.append(check_pkg)
-            return True
+            # look for any version of check_pkg installed as there is 
+            # no version specified in package.use
+            package_exists = portage.portdb.xmatch("match-all", check_pkg)
+            if package_exists:
+                # get all package versions
+                query = Query(check_pkg)
+                pkgs = []
+                try:
+                    pkgs = query.smart_find(True,True,True,True,False,True)
+                except errors.GentoolkitException as err:
+                    print_output(debug,portage.output.blue("Package " + check_pkg + " not found."))
+    
+                if (pkgs != None):
+                    pkg_length = len(pkgs)
+    
+                    # go through each package version for a specific version found above
+                    if (has_atom == False):
+                        for current_package in pkgs:
+                            if current_package.is_installed():
+                                package_installed = True
+                    else: 
+                        # go through each package version for a specific version found above
+                        for current_package in pkgs:
+                            if (str(current_package.cpv) == check_pkg):
+                                if not current_package.is_installed():
+                                    print_output(info,portage.output.green("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
+                                    if "package.keywords" in filename:
+                                        stable_list.append(check_pkg)
+                                    if "package.accept_keywords" in filename:
+                                        stable_listNg.append(check_pkg)
+                                    unmask_list.append(check_pkg)
+                                    return True
+                                else:
+                                    return False
+            else:
+                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+                if "package.keywords" in filename:
+                    stable_list.append(check_pkg)
+                if "package.accept_keywords" in filename:
+                    stable_listNg.append(check_pkg)
+                unmask_list.append(check_pkg)
+                return True
+    if (package_installed == False):
+        # package does not exists
+        print_output(info,portage.output.green("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
+        if "package.keywords" in filename:
+            stable_list.append(check_pkg)
+        if "package.accept_keywords" in filename:
+            stable_listNg.append(check_pkg)
+        unmask_list.append(check_pkg)
+        return True
 
     return False
+
+
+
+
+# skip the file if portpeek-skip found in a comment
+# you can put this in the middle of a file and it will
+#skip all entrie below it, this is useful to speed things
+#up by not checking ~kde versions, for example
+def skipFile (line, filename):
+    if ( (line == None) or (filename == None)):
+        return False
+
+    if line.find("portpeek-skip") >= 0:
+        return True
+
+    return False
+
+# parse the package.use file and look for packages
+# not installed
+def parse_package_use(line, filename):
+
+    global info,debug
+    pkgs = None
+    check_pkg = ""
+    pkg_length = 0
+    atom_check="<>="
+    any_version = False
+    has_atom = True
+
+    diffs_found = False
+    package_installed = False
+    fields = line.replace("\t", " ").split(" ")
+
+    if len(fields) > 0:
+        check_pkg = fields[0] # this could be one of <>=
+        if check_pkg[0] not in atom_check:
+            has_atom = False
+        else:
+            check_pkg = check_pkg[1:]
+
+        # if there is a wildcard, check to make sure at least one
+        # of the packages is installed
+        if check_pkg.find("/*") >= 0:
+            query = Query(check_pkg)
+            pkgs = []
+            try:
+                pkgs = query.smart_find(True,True,True,True,False,True)
+            except errors.GentoolkitException as err:
+                print_output(debug,portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
+                return False
+
+            if (pkgs != None):
+                pkg_length = len(pkgs)
+            for current_package in pkgs:
+                # on wildcard scenario, return False if one package is installed
+                if current_package.is_installed():
+                    return False
+        else:
+            # look for any version of check_pkg installed as there is 
+            # no version specified in package.use
+
+            package_exists = portage.portdb.xmatch("match-all", check_pkg)
+            if package_exists:
+                # get all package versions
+                query = Query(check_pkg)
+                pkgs = []
+                try:
+                    pkgs = query.smart_find(True,True,True,True,False,True)
+                except errors.GentoolkitException as err:
+                        print_output(debug,portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
+    
+                if (pkgs != None):
+                    pkg_length = len(pkgs)
+    
+                    # go through each package version for a specific version found above
+                    if (has_atom == False):
+                        for current_package in pkgs:
+                            if current_package.is_installed():
+                                package_installed = True
+                    else: 
+                        # go through each package version for a specific version found above
+                        for current_package in pkgs:
+                            if (str(current_package.cpv) == check_pkg):
+                                if not current_package.is_installed():
+                                    print_output(info,portage.output.green("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
+                                    if "package.keywords" in filename:
+                                        stable_list.append(check_pkg)
+                                    if "package.accept_keywords" in filename:
+                                        stable_listNg.append(check_pkg)
+                                    unmask_list.append(check_pkg)
+                                    return True
+                                else:
+                                    return False
+            else:
+                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+                if "package.keywords" in filename:
+                    stable_list.append(check_pkg)
+                if "package.accept_keywords" in filename:
+                    stable_listNg.append(check_pkg)
+                unmask_list.append(check_pkg)
+                return True
+    if (package_installed == False):
+        # package does not exists
+        print_output(info,portage.output.green("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
+        if "package.keywords" in filename:
+            stable_list.append(check_pkg)
+        if "package.accept_keywords" in filename:
+            stable_listNg.append(check_pkg)
+        unmask_list.append(check_pkg)
+        return True
+
+    return False
+
 
 
 # parts blatantly stolen from equery
@@ -732,7 +845,6 @@ def show_all_versions(pkg, filename):
                 if "package.accept_keywords" in filename:
                     stable_listNg.append(str(current_package.cpv))
 
-# mike
 def handle_if_overlay(package):
     overlay_text = ""
     global print_overlay_flag,using_gentoo_as_overlay
