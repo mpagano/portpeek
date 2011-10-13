@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.11"
+__version__ = "2.0.12"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -46,6 +46,7 @@ unmask_list = []
 tilde = 0
 processing_package_use = False
 using_gentoo_as_overlay = False
+overlay_list = []
 
 try:
     PORTAGE_CONFIGROOT
