@@ -16,11 +16,11 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.12"
+__version__ = "2.0.13"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
-import sys, os, portage.output, fileinput
+import sys, os, portage.output, fileinput, re
 #import gentoolkit,gentoolkit.helpers,gentoolkit.package,gentoolkit.versionmatch,gentoolkit.query
 from gentoolkit.versionmatch import VersionMatch,errors
 from portage.const import USER_CONFIG_PATH
@@ -154,6 +154,13 @@ def parse_line(line, filename):
     not_installed_pkgs = 0
     pkg_length = 0
     atom_check="<>="
+    original_line = line
+
+    # if the line has special characters, we need to make sure the original line is used for matching
+    special_line = False
+
+    if ( (re.match('[><:\*]',line) != None) ):
+        special_line = True
 
     print_output(debug,portage.output.blue("Analyzing line: " + line))
 	# determine if we are also check ~ prefixed code
@@ -340,10 +347,19 @@ def parse_line(line, filename):
                         if (not checking_package_mask):
                             print_output(info,portage.output.green("\n" + fields[0] + ": ") + portage.output.yellow("Not Installed"),current_package)
                             if "package.keywords" in filename:
-                                stable_list.append(str(current_package.cpv))
+                                if (special_line == False):
+                                    stable_list.append(str(current_package.cpv))
+                                else:
+                                    stable_list.append(original_line)
                             if "package.accept_keywords" in filename:
-                                stable_listNg.append(str(current_package.cpv))
-                            unmask_list.append(str(current_package.cpv))
+                                if (special_line == False):
+                                    stable_listNg.append(str(current_package.cpv))
+                                else:
+                                    stable_listNg.append(original_line)
+                            if (special_line == False):
+                                unmask_list.append(str(current_package.cpv))
+                            else:
+                                unmask_list.append(original_line)
                         else:
                             print_output (info,portage.output.green("\n" + str(current_package.cpv) + ": ") + portage.output.yellow("Package Masked"),current_package)
         else:
