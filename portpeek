@@ -47,6 +47,8 @@ tilde = 0
 processing_package_use = False
 using_gentoo_as_overlay = False
 overlay_list = []
+fix_confirm = True
+fix_asked = False
 
 try:
     PORTAGE_CONFIGROOT
@@ -70,7 +72,8 @@ options = [
 "--fix", 
 "--tilde-check",
 "--no-color",
-"--package-use"
+"--package-use",
+"--fix-confirm"
 ]
 
 mappings = {
@@ -87,7 +90,8 @@ mappings = {
 "f":"--fix", 
 "t":"--tilde-check",
 "n":"--no-color",
-"s":"--package-use"
+"s":"--package-use",
+"q":"--fix-confirm"
 }
 
 cmdline = []
@@ -107,7 +111,8 @@ def print_usage():
     print (portage.output.yellow(" -m, --mask") + "      - show matches from package.mask only")
     print (portage.output.yellow(" -u, --unmask") + "        - show matched from package.unmask only")
     
-    print (portage.output.yellow(" -f, --fix") + "       - will remove the stabled packages without asking for confirmation")
+    print (portage.output.yellow(" -f, --fix") + "       - will remove the stabled and invalid packages without asking for confirmation")
+    print (portage.output.yellow(" -q, --confirm-fix") +"    - will remove the stabled and invalid packages asking for confirmation before doing so")
     print (portage.output.yellow(" -h, --help") + "      - display this message")
     print (portage.output.yellow(" -d, --debug") + "         - display more verbose output for debugging")
     print (portage.output.yellow(" -V, --version") + "       - display version info")
@@ -928,6 +933,10 @@ def cleanFile (filename):
     removeDups = []
     removed_list = []
 
+    if "--fix-confirm" in cmdline:
+        if (confirmFix() == False):
+            return
+
     # if the file or directory does not exist
     # exit out
     if (os.path.exists(filename) == False):
@@ -987,6 +996,50 @@ def cleanFile (filename):
         for package in removed_list:
             print (portage.output.red("Removing from: ") + portage.output.yellow(filename) + ": " + portage.output.green(package) + "\n")
 
+# ask the user if they want to fix their files
+# and remove unneeded entries
+# Return true if they say yes and False if they say no
+def confirmFix():
+    
+    global fix_asked,fix_confirm
+
+    if (fix_asked == True):
+        return fix_confirm
+
+    fix_asked = True 
+
+    # only ask if we actually have anything to check
+    if ( (len(stable_list) == 0) and 
+          (len(stable_listNg) == 0) and
+          (len(unmask_list) == 0)):
+        fix_confirm = True
+        return fix_confirm
+
+    valid = {"yes":"yes",   "y":"yes", 
+             "no":"no",     "n":"no"}
+   
+    prompt = portage.output.bold("Remove entries from files [") + portage.output.green("y") + "/" + portage.output.red("n") + portage.output.bold("]") + " "
+
+    while 1:
+        sys.stdout.write('\n' + prompt)
+        choice = input().lower()
+        if choice == '':
+            fix_confirm = False
+            break
+        elif choice in valid.keys():
+            if (choice == 'y' or choice == 'yes'):
+                fix_confirm = True
+                break
+            else:
+                fix_confirm = False
+                break 
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "\
+                             "(or 'y' or 'n').\n")
+
+    return fix_confirm
+
+
 # main
 if __name__ == "__main__":
 
@@ -1042,13 +1095,19 @@ if __name__ == "__main__":
     if "--version" in cmdline:
         print_version()
         sys.exit(0)
+
+    if "--fix-confirm" in cmdline:
+        print ("here")
+        if '--fix' not in cmdline:
+            cmdline.append("--fix")
     
     if "--all" in cmdline:
         tmpcmdline = ["--all"]
         if "--fix" in cmdline:
             tmpcmdline.append("--fix")
-        elif "--fixwithall" in cmdline:
-            tmpcmdline.append("--fixwithall")
+            if "--fix-confirm" in cmdline:
+                tmpcmdline.append("--fix-confirm")
+                fix_confirm = False
         cmdline=tmpcmdline      
 
     if "--help" in cmdline:
