@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.15"
+__version__ = "2.0.16"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -50,6 +50,7 @@ overlay_list = []
 fix_confirm = True
 fix_asked = False
 use_flag_dict = {}
+useremove_display = ""
 
 try:
     PORTAGE_CONFIGROOT
@@ -782,10 +783,13 @@ def get_useflags(package):
 
 def check_useflags(package,line):
 
+    global useremove_display
     invalid_flag_found = False
 
     if ((package is None) or (package == "")):
         return
+
+    useflag_removal_display=""
 
     if (len(line) <= 0):
         return
@@ -814,9 +818,19 @@ def check_useflags(package,line):
             flag = original_flag[1:]
         if flag not in clean_iuse:
             print_output (info,portage.output.red("use flag: " + flag + " is invalid for : " + str(package.cpv)))
+            useflag_removal_display += "Removing use flag: " + flag + " for package " + str(package.cpv)
             invalid_flag_found = True
         else:
             valid_flag_list.append(original_flag)
+
+    # if valid_flag_list is empty, there are no valid flags
+    if ( (len(valid_flag_list) > 0) and (len(useflag_removal_display) >0)):
+        useremove_display += useflag_removal_display + "\n"
+    elif ( len(valid_flag_list) == 0):
+        useremove_display += "No valid use flags found for package " + str(package.cpv) + ". Removing line: " + line + "\n"
+        if ( invalid_flag_found != True):
+            print_output (info,portage.output.red("No valid use flags found for package " + str(package.cpv)))
+        invalid_flag_found = True
 
     valid_flag_list.insert(0,package_string);
     if (invalid_flag_found == True):
@@ -830,6 +844,9 @@ def clean_useflagsFile(filename):
     if "--fix-confirm" in cmdline:
         if (confirmFix() == False):
             return
+    
+    display_line = ""
+
     try:
         # determine if filename is a directory
         if os.path.isdir(filename):
@@ -855,13 +872,17 @@ def clean_useflagsFile(filename):
                 use_flag_dict.get(line,"")
                 try:
                     check_for_change = use_flag_dict[line]
-                    print (" ".join(check_for_change))
+                    if ( len(check_for_change) > 1):
+                        print (" ".join(check_for_change))
                 except KeyError as error:
                     print (line)
 
             fileinput.close()
     except OSError as error:
         print (portage.output.red("Modify/Read access to file: " + filename + " failed: ") ,error)
+
+    if (len(useremove_display) > 0):
+        print (portage.output.red("\n" + useremove_display))
 
     return
 
