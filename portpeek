@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.16"
+__version__ = "2.0.17"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -28,6 +28,12 @@ from portage.exception import InvalidAtom
 from gentoolkit.cpv import CPV
 from gentoolkit.query import Query
 from gentoolkit.flag import get_flags
+
+# support python 2
+try:
+    input = raw_input
+except NameError:
+    pass
 
 porttree = portage.db[portage.root]["porttree"]
 settings = portage.config(clone=portage.settings)
