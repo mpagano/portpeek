@@ -16,11 +16,11 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.17"
+__version__ = "2.0.18"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
-import sys, os, portage.output, fileinput, re
+import sys, os, portage.output, fileinput, re, gentoolkit
 from gentoolkit.versionmatch import VersionMatch,errors
 from portage.const import USER_CONFIG_PATH
 from portage.versions import catpkgsplit,pkgcmp,pkgsplit
@@ -656,7 +656,7 @@ def check_tilde_masked_pkg(package_name, filename):
     print_output(debug,portage.output.blue("check_tilde_maskd_pkg: orig_package-name is " + orig_package_name))
     print_output(debug,portage.output.blue("check_tilde_maskd_pkg: package_name is " + package_name))
 
-    query = Query(package_name+"*", True)
+    query = Query(package_name, True)
 
     packages = []
     try:
