@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.18"
+__version__ = "2.0.19"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -57,6 +57,7 @@ fix_confirm = True
 fix_asked = False
 use_flag_dict = {}
 useremove_display = ""
+invalid_flag_found = False
 
 try:
     PORTAGE_CONFIGROOT
@@ -789,7 +790,7 @@ def get_useflags(package):
 
 def check_useflags(package,line):
 
-    global useremove_display
+    global useremove_display, invalid_flag_found
     invalid_flag_found = False
 
     if ((package is None) or (package == "")):
@@ -954,7 +955,7 @@ def print_output(log_level,output_string, package=None, filename=None):
 # or package.mask
 # includes support for etc/portage/package.keywords/<whatever>/package.keywords
 def cleanFile (filename):
-    
+
     removeDups = []
     removed_list = []
 
@@ -1034,7 +1035,8 @@ def confirmFix():
     # only ask if we actually have anything to check
     if ( (len(stable_list) == 0) and 
           (len(stable_listNg) == 0) and
-          (len(unmask_list) == 0)):
+          (len(unmask_list) == 0) and
+          (invalid_flag_found == False)):
         fix_confirm = True
         return fix_confirm
 
