@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.20"
+__version__ = "2.0.21"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -1039,7 +1039,8 @@ def confirmFix():
     if ( (len(stable_list) == 0) and 
           (len(stable_listNg) == 0) and
           (len(unmask_list) == 0) and
-          (invalid_flag_found == False)):
+          (invalid_flag_found == False) and 
+          (len(use_flag_dict) == 0)):
         fix_confirm = True
         return fix_confirm
 
