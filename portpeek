@@ -544,7 +544,7 @@ def parse_package_use(line, filename):
                 return True
     if (package_installed == False):
         # package does not exists
-        print_output(info,portage.output.red("\n" + check_pkg + ": ") + portage.output.red("4Not Installed"),current_package)
+        print_output(info,portage.output.yellow("\n" + check_pkg + ": ") + portage.output.red("Not Installed"),current_package)
         if "package.keywords" in filename:
             stable_list.append(check_pkg)
         if "package.accept_keywords" in filename:
