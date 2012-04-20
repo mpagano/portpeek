@@ -246,7 +246,7 @@ def parse_line(line, filename):
                         if (check_pkg == str(current_package.cpv)):
                             if (not checking_package_mask):
 								# package is not instaleld
-                                print_output(info,portage.output.green("\n" + str(current_package.cpv) + ": ") + portage.output.yellow("Not Installed") , current_package, filename)
+                                print_output(info,portage.output.yellow("\n" + str(current_package.cpv) + ": ") + portage.output.red("Not Installed") , current_package, filename)
                                 if "package.keywords" in filename:
                                     stable_list.append(str(current_package.cpv))
                                 if "package.accept_keywords" in filename:
@@ -360,7 +360,7 @@ def parse_line(line, filename):
                 if not_installed_pkgs ==  pkg_length:
                     if not display_done:
                         if (not checking_package_mask):
-                            print_output(info,portage.output.green("\n" + fields[0] + ": ") + portage.output.yellow("Not Installed"),current_package)
+                            print_output(info,portage.output.yellow("\n" + fields[0] + ": ") + portage.output.red("Not Installed"),current_package)
                             if "package.keywords" in filename:
                                 if (special_line == False):
                                     stable_list.append(str(current_package.cpv))
@@ -514,7 +514,7 @@ def parse_package_use(line, filename):
                         for current_package in pkgs:
                             if (str(current_package.cpv) == check_pkg):
                                 if not current_package.is_installed():
-                                    print_output(info,portage.output.red("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
+                                    print_output(info,portage.output.yellow("\n" + check_pkg + ": ") + portage.output.red("Not Installed"),current_package)
                                     if "package.keywords" in filename:
                                         stable_list.append(check_pkg)
                                     if "package.accept_keywords" in filename:
@@ -694,7 +694,7 @@ def check_tilde_masked_pkg(package_name, filename):
             no_versions_installed = False
 
     if (no_versions_installed == True):
-        ebuild_output = portage.output.red("\n" + package_name + ": ") + portage.output.yellow("Not Installed")
+        ebuild_output = portage.output.yellow("\n" + package_name + ": ") + portage.output.red("Not Installed")
         if "package.unmask" in filename:
             unmask_list.append(orig_package_name)
         if "package.keywords" in filename:
