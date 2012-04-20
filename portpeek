@@ -497,23 +497,34 @@ def parse_package_use(line, filename):
                 if (pkgs != None):
                     pkg_length = len(pkgs)
     
-                    # go through each package version for a specific version found above
+                    # go through each package version for a specific 
+                    # version found above
+                    # if one line check returns all ok, we don't need 
+                    #to check the rest. One slot could have different 
+                    #use flags than another
                     if (has_atom == False):
                         for current_package in pkgs:
                             if current_package.is_installed():
                                 check_useflags(current_package,line)
                                 package_installed = True
+                                if (invalid_flag_found == False):
+                                    break;
                     else: 
                         # go through each package version for a specific version found above
                         for current_package in pkgs:
                             if (str(current_package.cpv) == check_pkg):
                                 if not current_package.is_installed():
-                                    print_output(info,portage.output.green("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
+                                    print_output(info,portage.output.red("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
                                     if "package.keywords" in filename:
                                         stable_list.append(check_pkg)
                                     if "package.accept_keywords" in filename:
                                         stable_listNg.append(check_pkg)
                                     unmask_list.append(check_pkg)
+                                    if "package.use" in filename:
+                                        valid_flag_list = []
+                                        valid_flag_list.insert(0,current_package);
+                                        use_flag_dict[line] = valid_flag_list
+                                        check_for_change = use_flag_dict[line]
                                     return True
                                 else:
                                     check_useflags(current_package,line)
@@ -525,14 +536,25 @@ def parse_package_use(line, filename):
                 if "package.accept_keywords" in filename:
                     stable_listNg.append(check_pkg)
                 unmask_list.append(check_pkg)
+                if "package.use" in filename:
+                    valid_flag_list = []
+                    valid_flag_list.insert(0,current_package);
+                    use_flag_dict[line] = valid_flag_list
+                    check_for_change = use_flag_dict[line]
                 return True
     if (package_installed == False):
         # package does not exists
-        print_output(info,portage.output.green("\n" + check_pkg + ": ") + portage.output.yellow("Not Installed"),current_package)
+        print_output(info,portage.output.red("\n" + check_pkg + ": ") + portage.output.red("4Not Installed"),current_package)
         if "package.keywords" in filename:
             stable_list.append(check_pkg)
         if "package.accept_keywords" in filename:
             stable_listNg.append(check_pkg)
+        if "package.use" in filename:
+            valid_flag_list = []
+            valid_flag_list.insert(0,current_package);
+            use_flag_dict[line] = valid_flag_list
+            check_for_change = use_flag_dict[line]
+
         unmask_list.append(check_pkg)
         return True
 
@@ -672,7 +694,7 @@ def check_tilde_masked_pkg(package_name, filename):
             no_versions_installed = False
 
     if (no_versions_installed == True):
-        ebuild_output = portage.output.green("\n" + package_name + ": ") + portage.output.yellow("Not Installed")
+        ebuild_output = portage.output.red("\n" + package_name + ": ") + portage.output.yellow("Not Installed")
         if "package.unmask" in filename:
             unmask_list.append(orig_package_name)
         if "package.keywords" in filename:
@@ -791,9 +813,10 @@ def get_useflags(package):
 
 def check_useflags(package,line):
 
-    global useremove_display, invalid_flag_found
+    global useremove_display, invalid_flag_found 
     invalid_flag_found = False
 
+    print_output(debug,portage.output.blue("check_useflags: package: " + package.cpv))
     if ((package is None) or (package == "")):
         return
 
@@ -804,8 +827,15 @@ def check_useflags(package,line):
 
     iuse = get_useflags(package)
 
+    #for iuse_item in iuse:
+    #    print_output(debug,portage.output.blue(("iuse_item is " + iuse_item)))
+
     useflags_fromfile = line.replace("\t", " ").split(" ")
+    #for useflags_fromfile_item in useflags_fromfile:
+    #    print_output(debug,portage.output.blue(("useflags_fromfile_item is " + useflags_fromfile_item)))
+
     package_string = useflags_fromfile.pop(0)
+    print_output(debug,portage.output.blue(("package_string is " + package_string)))
 
     clean_useflags_list = []
     # remove + or -
