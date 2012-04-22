@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.21"
+__version__ = "2.0.22"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -503,12 +503,14 @@ def parse_package_use(line, filename):
                     #to check the rest. One slot could have different 
                     #use flags than another
                     if (has_atom == False):
-                        for current_package in pkgs:
-                            if current_package.is_installed():
-                                check_useflags(current_package,line)
-                                package_installed = True
-                                if (invalid_flag_found == False):
-                                    break;
+                        check_useflags_all_versions(pkgs, line, check_pkg)
+                        package_installed = check_for_any_installed_version(pkgs)
+                        #for current_package in pkgs:
+                        #    if current_package.is_installed():
+                        #        check_useflags(current_package,line)
+                        #        package_installed = True
+                        #        if (invalid_flag_found == False):
+                        #            break;
                     else: 
                         # go through each package version for a specific version found above
                         for current_package in pkgs:
@@ -538,7 +540,8 @@ def parse_package_use(line, filename):
                 unmask_list.append(check_pkg)
                 if "package.use" in filename:
                     valid_flag_list = []
-                    valid_flag_list.insert(0,current_package);
+                    #valid_flag_list.insert(0,current_package);
+                    valid_flag_list.insert(0,fields[0]);
                     use_flag_dict[line] = valid_flag_list
                     check_for_change = use_flag_dict[line]
                 return True
@@ -810,6 +813,124 @@ def show_all_versions(pkg, filename):
 def get_useflags(package):
     iuse, final_use = get_flags(package.cpv, final_setting=True)
     return iuse
+
+def check_useflags_all_versions(pkgs, line, check_pkgs):
+
+    global useremove_display, invalid_flag_found 
+    invalid_flag_found = False
+   
+    print_output(debug,portage.output.blue("ENTERED check_useflags_all_versions: " + check_pkgs))
+
+    potential_invalid_flag = []
+    valid_flag_list = []
+    for package in pkgs:
+
+        # if package not installed, move on
+        if (not package.is_installed()):
+            continue;
+
+        print_output(debug,portage.output.blue("check_useflags_all_versions: package: " + package.cpv))
+        if ((package is None) or (package == "")):
+            return
+
+        useflag_removal_display=""
+
+        if (len(line) <= 0):
+            return
+
+        iuse = get_useflags(package)
+
+        #for iuse_item in iuse:
+        #    print_output(debug,portage.output.blue(("iuse_item is " + iuse_item)))
+    
+        useflags_fromfile = line.replace("\t", " ").split(" ")
+
+        #for useflags_fromfile_item in useflags_fromfile:
+        #    print_output(debug,portage.output.blue(("useflags_fromfile_item is " + useflags_fromfile_item)))
+
+        package_string = useflags_fromfile.pop(0)
+        print_output(debug,portage.output.blue(("package_string is " + package_string)))
+    
+        clean_useflags_list = []
+        # remove + or -
+        atom = "-+"
+    
+        #clean list from portage of + or -
+        clean_iuse = []
+        for item in iuse:
+            if item[0] in atom:
+                clean_iuse.append(item[1:])
+            else:
+                clean_iuse.append(item)
+    
+        for original_flag in useflags_fromfile:
+            if (original_flag is None or original_flag == ""):
+                continue
+            flag = original_flag
+            if original_flag[0] in atom:
+                flag = original_flag[1:]
+            if flag not in clean_iuse:
+                print_output(debug,portage.output.blue(("found invalid flag: " + flag)))
+
+                # only add to invalid list if it's not in valid list
+                try:
+                    index = valid_flag_list.index(original_flag)
+                except ValueError as error:
+
+                    try:
+                       index = potential_invalid_flag.index(original_flag)
+                    except ValueError:
+                       print_output(debug,portage.output.blue(original_flag + " not found for " + package.cpv))
+                       potential_invalid_flag.append(original_flag)
+
+            else:
+                print_output(debug,portage.output.blue(("found valid flag: " + flag)))
+                try:
+                    index = valid_flag_list.index(original_flag)
+                except ValueError as error:
+                    valid_flag_list.append(original_flag)
+
+                try:
+                    index = potential_invalid_flag.index(original_flag)
+                    potential_invalid_flag.remove(original_flag)
+                except ValueError as error:
+                    continue
+
+    # if potential_invalid_flag list is empty, we are done
+    if (len(potential_invalid_flag) <= 0):
+        return
+
+    invalid_flag_found = True
+
+    # if there are no valid flags at all, we remove the line
+    if ( len(valid_flag_list) == 0):
+        useremove_display += "No valid use flags found for package " + str(package.cpv) + ". Removing line: " + line + "\n"
+        return
+
+    # if there are values in potential_invalid_flag, we need to remove them
+    invalid_flags = ""
+    verb = "is"
+    for inv_flag in potential_invalid_flag:
+        if (len(invalid_flags) > 0):
+            invalid_flags += ","
+            verb = "are"
+        invalid_flags += inv_flag
+
+    if (len(potential_invalid_flag) > 1):
+        removal_text = "use flags: "
+    else:
+        removal_text = "use flag: "
+
+    if ( (len(valid_flag_list) > 0)):
+        useremove_display += "Removing " + removal_text + invalid_flags + " for package " + check_pkgs + "\n"
+        print (portage.output.yellow(removal_text) +  portage.output.red(invalid_flags) + portage.output.yellow(" " + verb + " invalid for " + str(package.cpv)))
+
+    valid_flag_list.insert(0,package_string);
+
+    if (len(potential_invalid_flag) > 0):
+        use_flag_dict[line] = valid_flag_list
+        
+    return valid_flag_list
 
 def check_useflags(package,line):
 
@@ -1101,6 +1222,14 @@ def confirmFix():
     return fix_confirm
 
 
+def check_for_any_installed_version(pkgs):
+    
+    for package in pkgs:
+        if (package.is_installed()):
+            return True
+
+    return False
+
 # main
 if __name__ == "__main__":
 
@@ -1158,7 +1287,6 @@ if __name__ == "__main__":
         sys.exit(0)
 
     if "--fix-confirm" in cmdline:
-        print ("here")
         if '--fix' not in cmdline:
             cmdline.append("--fix")
     
