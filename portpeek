@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.22"
+__version__ = "2.0.23"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -505,6 +505,8 @@ def parse_package_use(line, filename):
                     if (has_atom == False):
                         check_useflags_all_versions(pkgs, line, check_pkg)
                         package_installed = check_for_any_installed_version(pkgs)
+                        current_package = None
+
                         #for current_package in pkgs:
                         #    if current_package.is_installed():
                         #        check_useflags(current_package,line)
@@ -545,6 +547,7 @@ def parse_package_use(line, filename):
                     use_flag_dict[line] = valid_flag_list
                     check_for_change = use_flag_dict[line]
                 return True
+
     if (package_installed == False):
         # package does not exists
         print_output(info,portage.output.yellow("\n" + check_pkg + ": ") + portage.output.red("Not Installed"),current_package)
