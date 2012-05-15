@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.23"
+__version__ = "2.0.24"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -740,18 +740,18 @@ def check_tilde_masked_pkg(package_name, filename):
                     if (pkgmask >= 1):
                         # package was found as masked
                         return 
-                    else:
-                        # at this point we have no packages >= ~cpv that are masked, present for removal
-                        # package does not have any masked versions
-                        ebuild_output = portage.output.green(package_name + " has no masked versions")
-                        
-                        if "package.unmask" in filename:
-                            unmask_list.append(orig_package_name)
-                        if "package.keywords" in filename:
-                            stable_list.append(orig_package_name)
-                        if "package.accept_keywords" in filename:
-                            stable_listNg.append(orig_package_name)
-                        print_output(info,ebuild_output, package, filename)
+        else:
+            # at this point we have no packages >= ~cpv that are masked, present for removal
+            # package does not have any masked versions
+            ebuild_output = portage.output.green(package_name + " has no masked versions")
+            
+            if "package.unmask" in filename:
+                unmask_list.append(orig_package_name)
+            if "package.keywords" in filename:
+                stable_list.append(orig_package_name)
+            if "package.accept_keywords" in filename:
+                stable_listNg.append(orig_package_name)
+            print_output(info,ebuild_output, package, filename)
 
 #helper function to print avail pks when version does not exist
 def show_all_versions(pkg, filename):
