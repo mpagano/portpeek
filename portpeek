@@ -27,7 +27,7 @@ from portage.versions import catpkgsplit,pkgcmp,pkgsplit
 from portage.exception import InvalidAtom
 from gentoolkit.cpv import CPV
 from gentoolkit.query import Query
-from gentoolkit.flag import get_flags
+from gentoolkit.flag import get_iuse
 
 # support python 2
 try:
@@ -814,7 +814,7 @@ def show_all_versions(pkg, filename):
 
 
 def get_useflags(package):
-    iuse, final_use = get_flags(package.cpv, final_setting=True)
+    iuse = get_iuse(package.cpv)
     return iuse
 
 def check_useflags_all_versions(pkgs, line, check_pkgs):
