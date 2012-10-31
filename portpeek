@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.25"
+__version__ = "2.0.26"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -878,10 +878,12 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
                 # only add to invalid list if it's not in valid list
                 try:
                     index = valid_flag_list.index(original_flag)
+                    print_output(debug,portage.output.blue(("index in valid_flag_list is " + index)))
                 except ValueError as error:
 
                     try:
                        index = potential_invalid_flag.index(original_flag)
+                       print_output(debug,portage.output.blue(("index in potential_invalid_flag list is " + index)))
                     except ValueError:
                        print_output(debug,portage.output.blue(original_flag + " not found for " + package.cpv))
                        potential_invalid_flag.append(original_flag)
@@ -899,18 +901,14 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
                 except ValueError as error:
                     continue
 
+
     # if potential_invalid_flag list is empty, we are done
     if (len(potential_invalid_flag) <= 0):
         return
 
     invalid_flag_found = True
 
-    # if there are no valid flags at all, we remove the line
-    if ( len(valid_flag_list) == 0):
-        useremove_display += "No valid use flags found for package " + str(package.cpv) + ". Removing line: " + line + "\n"
-        return
-
-    # if there are values in potential_invalid_flag, we need to remove them
+    # build sentence
     invalid_flags = ""
     verb = "is"
     for inv_flag in potential_invalid_flag:
@@ -919,7 +917,16 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
             verb = "are"
         invalid_flags += inv_flag
 
-    if (len(potential_invalid_flag) > 1):
+    # if there are no valid flags at all, we remove the line
+    if ( len(valid_flag_list) == 0):
+        print_output (info,portage.output.red("No valid use flags found for package " + str(package.cpv) + ". Invalid flag(s) found: " + invalid_flags +  "\n"))
+        useremove_display += "Removing line: " + line + "\n"
+        use_flag_dict[line] = ""
+        return
+
+    # if there are values in potential_invalid_flag, we need to remove them
+
+    if (len(potential_invalid_flag) > 0):
         removal_text = "use flags: "
     else:
         removal_text = "use flag: "
@@ -1017,7 +1024,7 @@ def clean_useflagsFile(filename):
             # get listing of directory
             filenames = os.listdir(filename)
             for file_name in filenames:
-                cleanuseflagsFile(filename+os.path.sep+file_name)
+                clean_useflagsFile(filename+os.path.sep+file_name)
             return
         else:
             #go through stable array and remove line if found
