@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.0.26"
+__version__ = "2.1.0"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -202,6 +202,15 @@ def parse_line(line, filename):
             check_pkg = check_pkg[0:check_pkg.find("::")]
 
         if check_pkg[0] not in atom_check:
+
+            # if this is package_unmask, then check the non-atom containing package to see if any version is masked
+
+            if (checking_package_unmask == True):
+                
+                print_output(debug,portage.output.blue("check_pkg is " + check_pkg + " found"))
+                if (is_any_cpv_masked(check_pkg) == False):
+                    print_output(info,portage.output.red("No masked versions of " + check_pkg + " found. Tagged for removal."))
+                    unmask_list.append(str(check_pkg))
             return
         if (tilde == 1):
             if check_pkg[0] in "~":
@@ -286,7 +295,8 @@ def parse_line(line, filename):
                             stable_listNg.append(str(current_package.cpv))
                     else:
                         if (not show_removable_only_flag):
-                            ebuild_output = portage.output.green("Installed: ") + \
+                            if (not checking_package_unmask):
+                                ebuild_output = portage.output.green("Installed: ") + \
                                 portage.output.turquoise(str(current_package.cpv)) + \
                                 portage.output.yellow("  Keywords " + keywords) 
                         else:
@@ -617,6 +627,7 @@ def _get_mask_status(pkg, pure):
 
 def is_pkg_package_masked(cpv):
 
+    print_output(debug,portage.output.blue("is_pkg_package_masked called"))
     mysplit = catpkgsplit(cpv)
     if not mysplit:
         raise ValueError("invalid CPV: %s" % cpv)
@@ -657,6 +668,29 @@ def filter_keywords(keywords):
 
 
     return filtered_keywords
+
+
+# this function takes in a package with no cpv
+# and returns True if any version is masked
+def is_any_cpv_masked(package_name):
+    print_output(debug,portage.output.blue("inside is_any_cpv_masked: " + package_name))
+
+    query = Query(package_name, True)
+
+    packages = []
+    try:
+        packages = query.smart_find(True,True,True,True,False,True)
+    except errors.GentoolkitException as err:
+        print_output(debug,portage.output.blue("Package " + package_name + " not found."))
+
+    for package in packages:
+        if is_pkg_package_masked(package.cpv):
+            print_output(debug,portage.output.blue("Package " + package.cpv + " is masked."))
+            return True
+
+    print_output(debug,portage.output.blue("Package " + package_name + ". No masked versions."))
+    return False
+
 
 # check to see if we have a stable release
 # in our package.* files that we can remove
@@ -919,7 +953,7 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
 
     # if there are no valid flags at all, we remove the line
     if ( len(valid_flag_list) == 0):
-        print_output (info,portage.output.red("No valid use flags found for package " + str(package.cpv) + ". Invalid flag(s) found: " + invalid_flags +  "\n"))
+        print_output (info,portage.output.red("No valid use flags found for package: " + str(package.category) + "/" + str(package.name) + ". Invalid flag(s) found: " + invalid_flags +  "\n"))
         useremove_display += "Removing line: " + line + "\n"
         use_flag_dict[line] = ""
         return
@@ -1017,6 +1051,7 @@ def clean_useflagsFile(filename):
             return
     
     display_line = ""
+    removed_list = []
 
     try:
         # determine if filename is a directory
@@ -1043,6 +1078,7 @@ def clean_useflagsFile(filename):
                 use_flag_dict.get(line,"")
                 try:
                     check_for_change = use_flag_dict[line]
+                    removed_list.append(line)
                     if ( len(check_for_change) > 1):
                         print (" ".join(check_for_change))
                 except KeyError as error:
@@ -1052,9 +1088,10 @@ def clean_useflagsFile(filename):
     except OSError as error:
         print (portage.output.red("Modify/Read access to file: " + filename + " failed: " + format(error)))
 
-    if (len(useremove_display) > 0):
-        print (portage.output.red("\n" + useremove_display))
-
+    if (len(removed_list) > 0):
+        print ("\n")
+        for package in removed_list:
+            print (portage.output.red("Removing from: ") + portage.output.yellow(filename) + ": " + portage.output.green(package) + "\n")
     return
 
 def handle_if_overlay(package):
