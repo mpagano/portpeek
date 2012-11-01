@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.0"
+__version__ = "2.1.1"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -912,12 +912,10 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
                 # only add to invalid list if it's not in valid list
                 try:
                     index = valid_flag_list.index(original_flag)
-                    print_output(debug,portage.output.blue(("index in valid_flag_list is " + index)))
                 except ValueError as error:
 
                     try:
                        index = potential_invalid_flag.index(original_flag)
-                       print_output(debug,portage.output.blue(("index in potential_invalid_flag list is " + index)))
                     except ValueError:
                        print_output(debug,portage.output.blue(original_flag + " not found for " + package.cpv))
                        potential_invalid_flag.append(original_flag)
