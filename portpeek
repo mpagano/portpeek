@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.2"
+__version__ = "2.1.3"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -749,9 +749,6 @@ def check_tilde_masked_pkg(package_name, filename):
                 if (packageObj == None):
                     # we could not create a package object
                     return
-                pkgmask = _get_mask_status(packageObj, True)
-
-                print_output(debug,portage.output.blue("check_tilde_maskd_pkg: current_package is " + str(current_package.cpv) + " and pkgmask is " + str(pkgmask)))
 
                 if "package.unmask" in filename:
                     if (is_pkg_package_masked(str(current_package.cpv))):
@@ -764,7 +761,7 @@ def check_tilde_masked_pkg(package_name, filename):
                         print_output(info,ebuild_output, package, filename)
                         return
                 else:
-                    if (pkgmask >= 1):
+                    if (is_pkg_package_masked(str(current_package.cpv))):
                         # package was found as masked
                         return 
         else:
