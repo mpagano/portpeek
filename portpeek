@@ -16,11 +16,11 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.1"
+__version__ = "2.1.2"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
-import sys, os, portage.output, fileinput, re, gentoolkit
+import sys, os, portage, fileinput, re, gentoolkit
 from gentoolkit.versionmatch import VersionMatch,errors
 from portage.const import USER_CONFIG_PATH
 from portage.versions import catpkgsplit,pkgcmp,pkgsplit
@@ -627,22 +627,15 @@ def _get_mask_status(pkg, pure):
 
 def is_pkg_package_masked(cpv):
 
-    print_output(debug,portage.output.blue("is_pkg_package_masked called"))
-    mysplit = catpkgsplit(cpv)
-    if not mysplit:
-        raise ValueError("invalid CPV: %s" % cpv)
-    if not portage.portdb.cpv_exists(cpv):
-        return False
+    print_output(debug,portage.output.blue("is_pkg_package_masked called: " + cpv))
+    settings2 = portage.config(local_config=False)
+    portdb2 = portage.portdbapi(None, settings)
 
-    mycp = mysplit[0] + "/" + mysplit[1]
+    mask_reason_list = None
+    for mask_reason_list in portage.getmaskingstatus(cpv, settings2, portdb=portdb2):
+        return True
 
-    pmaskdict = settings._mask_manager._pmaskdict
-    if mycp in pmaskdict:
-        for package in pmaskdict[mycp]:
-            if cpv in portage.portdb.xmatch("match-all", package):
-                return True
-                
-    return False    
+    return False
 
 # filter out keywords for archs other than the current one
 def filter_keywords(keywords):
