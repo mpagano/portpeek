@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.3"
+__version__ = "2.1.4"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -168,7 +168,7 @@ def parse_line(line, filename):
     check_pkg = ""
     not_installed_pkgs = 0
     pkg_length = 0
-    atom_check="<>="
+    atom_check="<>=~"
     original_line = line
 
     # if the line has special characters, we need to make sure the original line is used for matching
@@ -178,9 +178,6 @@ def parse_line(line, filename):
         special_line = True
 
     print_output(debug,portage.output.blue("Analyzing line: " + line))
-	# determine if we are also check ~ prefixed code
-    if  (tilde == 1): 
-        atom_check="<>=~"
 
     diffs_found = False
     display_done = False
