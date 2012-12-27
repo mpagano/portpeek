@@ -1079,7 +1079,8 @@ def clean_useflagsFile(filename):
     if (len(removed_list) > 0):
         print ("\n")
         for package in removed_list:
-            print (portage.output.red("Removing from: ") + portage.output.yellow(filename) + ": " + portage.output.green(package) + "\n")
+            print (portage.output.red("Removing from: ") + portage.output.yellow(filename + ": Invalid use flag(s) from ")  + portage.output.green(package) + "\n")
+
     return
 
 def handle_if_overlay(package):
