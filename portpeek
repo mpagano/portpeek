@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.4"
+__version__ = "2.1.5"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -37,6 +37,7 @@ except NameError:
 
 porttree = portage.db[portage.root]["porttree"]
 settings = portage.config(clone=portage.settings)
+#settings = portage.config(local_config=False)
 
 show_changes_only_flag = False
 checking_package_unmask = False
@@ -468,6 +469,8 @@ def parse_package_use(line, filename):
             has_atom = False
         else:
             check_pkg = check_pkg[1:]
+            if check_pkg[0] in atom_check:
+                check_pkg = check_pkg[1:]
 
 
         # if there is a wildcard, check to make sure at least one
