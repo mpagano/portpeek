@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.6"
+__version__ = "2.1.7"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -632,8 +632,12 @@ def is_pkg_package_masked(cpv):
     portdb2 = portage.portdbapi(None, settings)
 
     mask_reason_list = None
-    for mask_reason_list in portage.getmaskingstatus(cpv, settings2, portdb=portdb2):
-        return True
+    
+    try:
+        for mask_reason_list in portage.getmaskingstatus(cpv, settings2, portdb=portdb2):
+            return True
+    except:
+        return False
 
     return False
 
