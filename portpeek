@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.7"
+__version__ = "2.1.8"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -175,7 +175,9 @@ def parse_line(line, filename):
     # if the line has special characters, we need to make sure the original line is used for matching
     special_line = False
 
-    if ( (re.match('[><:\*]',line) != None) ):
+    pattern=r'[<>:*]'
+
+    if ( (re.search(pattern,line) != None) ):
         special_line = True
 
     print_output(debug,portage.output.blue("Analyzing line: " + line))
