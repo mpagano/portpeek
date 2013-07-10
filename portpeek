@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.8"
+__version__ = "2.1.9"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -871,11 +871,20 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
         if (len(line) <= 0):
             return
 
-        iuse = get_useflags(package)
+        list2 = get_useflags(package)
 
-        #for iuse_item in iuse:
-        #    print_output(debug,portage.output.blue(("iuse_item is " + iuse_item)))
-    
+        for uf in list2:
+            print_output(debug,portage.output.blue(("use found " + uf)))
+ 
+        iuse_string = package.use()
+        iuse = iuse_string.split(" ")
+
+        for uflag in list2:
+            iuse.append(uflag)
+
+        for iuse_item in iuse:
+            print_output(debug,portage.output.blue(("iuse_item is " + iuse_item)))
+
         useflags_fromfile = line.replace("\t", " ").split(" ")
 
         #for useflags_fromfile_item in useflags_fromfile:
