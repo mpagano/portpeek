@@ -171,6 +171,7 @@ def parse_line(line, filename):
     pkg_length = 0
     atom_check="<>=~"
     original_line = line
+    has_asterick = False
 
     # if the line has special characters, we need to make sure the original line is used for matching
     special_line = False
@@ -179,6 +180,9 @@ def parse_line(line, filename):
 
     if ( (re.search(pattern,line) != None) ):
         special_line = True
+
+    if ( line.find("*") > 0 ):
+        has_asterick = True
 
     print_output(debug,portage.output.blue("Analyzing line: " + line))
 
@@ -284,15 +288,16 @@ def parse_line(line, filename):
                         continue
 
                     if stable:
-                        ebuild_output = portage.output.green("Installed: ") + \
-                            portage.output.turquoise(str(current_package.cpv)) + \
-                            portage.output.green("  Keywords " + keywords)
-                        if "package.unmask" in filename:
-                            unmask_list.append(str(current_package.cpv))
-                        if "package.keywords" in filename:
-                            stable_list.append(str(current_package.cpv))
-                        if "package.accept_keywords" in filename:
-                            stable_listNg.append(str(current_package.cpv))
+                        if ( not has_asterick): # if it has an asterick, then we don't remove
+                            ebuild_output = portage.output.green("Installed: ") + \
+                                portage.output.turquoise(str(current_package.cpv)) + \
+                                portage.output.green("  Keywords " + keywords)
+                            if "package.unmask" in filename:
+                                unmask_list.append(str(current_package.cpv))
+                            if "package.keywords" in filename:
+                                stable_list.append(str(current_package.cpv))
+                            if "package.accept_keywords" in filename:
+                                stable_listNg.append(str(current_package.cpv))
                     else:
                         if (not show_removable_only_flag):
                             if (not checking_package_unmask):
@@ -315,14 +320,15 @@ def parse_line(line, filename):
 
 					# print once
                     ebuild_search_key_printed = False
-                    if stable:
-                        diffs_found = False
-                        ebuild_search_key_printed = True
-                        print_output(info,"\n" + ebuild_output,current_package, filename)
-                    elif not show_changes_only_flag and not show_removable_only_flag:
-                        diffs_found = False
-                        ebuild_search_key_printed = True
-                        print_output(info,"\n" + ebuild_output,current_package)
+                    if ( not has_asterick): # if it has an asterick, then we don't remove
+                        if stable:
+                            diffs_found = False
+                            ebuild_search_key_printed = True
+                            print_output(info,"\n" + ebuild_output,current_package, filename)
+                        elif not show_changes_only_flag and not show_removable_only_flag:
+                            diffs_found = False
+                            ebuild_search_key_printed = True
+                            print_output(info,"\n" + ebuild_output,current_package)
 
 					# go through all versions of a package
                     query = Query(current_package.category + "/" + current_package.name)
