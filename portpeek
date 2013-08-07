@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.9"
+__version__ = "2.1.10"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -181,7 +181,7 @@ def parse_line(line, filename):
     if ( (re.search(pattern,line) != None) ):
         special_line = True
 
-    if ( line.find("*") > 0 ):
+    if ( line.find("*") > 0 ) or ( line.find("<") >= 0 ):
         has_asterick = True
 
     print_output(debug,portage.output.blue("Analyzing line: " + line))
