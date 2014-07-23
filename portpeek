@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.11"
+__version__ = "2.1.12"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -312,7 +312,7 @@ def parse_line(line, filename):
                         if (not is_any_cpv_file_masked(str(current_package.cpv))):
 
                             # package is in package.unmask unnecessarily
-                            ebuild_output = portage.output.yellow("\n" + current_package.cpv  + ": " + portage.output.yellow("Not package masked"))
+                            ebuild_output = portage.output.yellow("\n" + current_package.cpv  + ": Not package masked")
                             if "package.unmask" in filename:
                                 unmask_list.append(str(current_package.cpv))
                                 print_output (info, "" +  ebuild_output,None, filename)
@@ -793,7 +793,7 @@ def check_tilde_masked_pkg(package_name, filename):
                     else:
                         # package is not masked
                         unmask_list.append(str(current_package.cpv))
-                        ebuild_output = portage.output.yellow(str(current_package.cpv)) + ": " + portage.output.yellow("Not package masked")
+                        ebuild_output = portage.output.yellow(str(current_package.cpv) + ": Not package masked")
                         print_output(info,ebuild_output, package, filename)
                         return
                 else:
