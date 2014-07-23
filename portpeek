@@ -312,7 +312,7 @@ def parse_line(line, filename):
                         if (not is_any_cpv_file_masked(str(current_package.cpv))):
 
                             # package is in package.unmask unnecessarily
-                            ebuild_output = current_package.cpv  + ": " + portage.output.yellow("Not package masked")
+                            ebuild_output = portage.output.yellow("\n" + current_package.cpv  + ": " + portage.output.yellow("Not package masked"))
                             if "package.unmask" in filename:
                                 unmask_list.append(str(current_package.cpv))
                                 print_output (info, "" +  ebuild_output,None, filename)
