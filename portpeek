@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.10"
+__version__ = "2.1.11"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -212,7 +212,7 @@ def parse_line(line, filename):
             if (checking_package_unmask == True):
                 
                 print_output(debug,portage.output.blue("check_pkg is " + check_pkg + " found"))
-                if (is_any_cpv_masked(check_pkg) == False):
+                if (is_any_cpv_keyword_masked(check_pkg) == False):
                     print_output(info,portage.output.red("No masked versions of " + check_pkg + " found. Tagged for removal."))
                     unmask_list.append(str(check_pkg))
             return
@@ -307,12 +307,12 @@ def parse_line(line, filename):
                         else:
                             ebuild_output = portage.output.yellow(str(current_package.cpv))
 
-					# check package.unmask
+	            # check package.unmask
                     if (checking_package_unmask):
-                        if (not is_pkg_package_masked(str(current_package.cpv))):
+                        if (not is_any_cpv_file_masked(str(current_package.cpv))):
 
-							# package is in package.unmask unnecessarily
-                            ebuild_output = ebuild_output + ": " + portage.output.yellow("Not package masked")
+                            # package is in package.unmask unnecessarily
+                            ebuild_output = current_package.cpv  + ": " + portage.output.yellow("Not package masked")
                             if "package.unmask" in filename:
                                 unmask_list.append(str(current_package.cpv))
                                 print_output (info, "" +  ebuild_output,None, filename)
@@ -677,8 +677,8 @@ def filter_keywords(keywords):
 
 # this function takes in a package with no cpv
 # and returns True if any version is masked
-def is_any_cpv_masked(package_name):
-    print_output(debug,portage.output.blue("inside is_any_cpv_masked: " + package_name))
+def is_any_cpv_keyword_masked(package_name):
+    print_output(debug,portage.output.blue("inside is_any_cpv_keyword_masked: " + package_name))
 
     query = Query(package_name, True)
 
@@ -695,6 +695,29 @@ def is_any_cpv_masked(package_name):
 
     print_output(debug,portage.output.blue("Package " + package_name + ". No masked versions."))
     return False
+
+# we need to know if the package is masked
+# by being present in the package.mask file
+# as opposed to masked by keyword.
+# if it's not, then we can remove from package.unmask
+def is_any_cpv_file_masked(package_name):
+
+    print_output(debug,portage.output.blue("is_any_cpv_file_masked called: " + package_name))
+    settings2 = portage.config(local_config=False)
+    portdb2 = portage.portdbapi(None, settings)
+
+    mask_reason_list = None
+
+    try:
+        for mask_reason_list in portage.getmaskingstatus(cpv, settings2, portdb=portdb2):
+            print ("Mask Reason is " + mask_reason_list)
+            if (mask_reason_list == 'package.mask'):
+                return True
+    except:
+        return False
+
+    return False
+
 
 
 # check to see if we have a stable release
@@ -763,7 +786,8 @@ def check_tilde_masked_pkg(package_name, filename):
                     return
 
                 if "package.unmask" in filename:
-                    if (is_pkg_package_masked(str(current_package.cpv))):
+                    #if (is_pkg_package_masked(str(current_package.cpv))):
+                    if (is_any_cpv_file_masked(str(current_package.cpv))):
                         # package was found as masked
                         return
                     else:
