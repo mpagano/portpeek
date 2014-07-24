@@ -313,7 +313,7 @@ def parse_line(line, filename):
                         if (not is_any_cpv_file_masked(str(current_package.cpv))):
 
                             # package is in package.unmask unnecessarily
-                            ebuild_output = portage.output.yellow("\n" + orig_pkg_name  + ": Not package masked")
+                            ebuild_output = portage.output.yellow("\n" + orig_pkg_name  + ": ") + portage.output.green("Not package masked")
                             if "package.unmask" in filename:
                                 unmask_list.append(str(current_package.cpv))
                                 print_output (info, "" +  ebuild_output,None, filename)
@@ -795,7 +795,7 @@ def check_tilde_masked_pkg(package_name, filename):
                     else:
                         # package is not masked
                         unmask_list.append(str(current_package.cpv))
-                        ebuild_output = portage.output.yellow(str(current_package.cpv) + ": Not package masked")
+                        ebuild_output = portage.output.yellow(str(current_package.cpv) + ": ") + portage.output.green("Not package masked")
                         print_output(info,ebuild_output, package, filename)
                         return
                 else:
