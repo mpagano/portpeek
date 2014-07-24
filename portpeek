@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.12"
+__version__ = "2.1.13"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -196,6 +196,7 @@ def parse_line(line, filename):
         #status as this tool is for check specific versions and not entire packages 
         # a ~cpv should be handled like an =cpv if requested bythe parameter -t
         check_pkg = fields[0] # this should be one of <>=~
+        orig_pkg_name = check_pkg
         overlay_index = check_pkg.find("::")
         if ( overlay_index >= 0):
             overlay_list = check_pkg.rsplit("::")
@@ -243,11 +244,11 @@ def parse_line(line, filename):
                 not_installed_pkgs = 0
                 display_done = False
 
-				# go through each package version for a specific version found above
+                # go through each package version for a specific version found above
                 for current_package in pkgs:
                     if not current_package.is_installed():
 
-						# we have found a package that is in our file, but not installed
+                        # we have found a package that is in our file, but not installed
                         not_installed_pkgs = not_installed_pkgs + 1
 
                         # check to see if specific version of pkg is not installed 
@@ -258,26 +259,26 @@ def parse_line(line, filename):
 
                         if (check_pkg == str(current_package.cpv)):
                             if (not checking_package_mask):
-								# package is not instaleld
-                                print_output(info,portage.output.yellow("\n" + str(current_package.cpv) + ": ") + portage.output.red("Not Installed") , current_package, filename)
+                                # package is not installed
+                                print_output(info,portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red("Not Installed") , current_package, filename)
                                 if "package.keywords" in filename:
                                     stable_list.append(str(current_package.cpv))
                                 if "package.accept_keywords" in filename:
                                     stable_listNg.append(str(current_package.cpv))
                                 unmask_list.append(str(current_package.cpv))
                             else:
-								# package is masked, and not installed, this is normal use of package.mask
-                                print_output(info,portage.output.green("" + str(current_package.cpv) + ": ") + portage.output.yellow("Package Masked"),current_package, filename)
+                                # package is masked, and not installed, this is normal use of package.mask
+                                print_output(info,portage.output.green("" + orig_pkg_name + ": ") + portage.output.yellow("Package Masked"),current_package, filename)
                             display_done = True
                         continue
 
-					# package is installed
-					# retrieve the keywords for a file
+                    # package is installed
+                    # retrieve the keywords for a file
                     keywords = "%s" % (get_keywords(current_package,"KEYWORDS").split())
                     if (keywords.find("Available/Deprecated") >= 0):
                         continue
 
-					#retrieve the mask status of a specific package
+                    #retrieve the mask status of a specific package
                     pkgmask = _get_mask_status(current_package, False)
 
                     #determine if installed package is unmasked, if so, display keywords as green
@@ -290,7 +291,7 @@ def parse_line(line, filename):
                     if stable:
                         if ( not has_asterick): # if it has an asterick, then we don't remove
                             ebuild_output = portage.output.green("Installed: ") + \
-                                portage.output.turquoise(str(current_package.cpv)) + \
+                                portage.output.turquoise(orig_pkg_name) + \
                                 portage.output.green("  Keywords " + keywords)
                             if "package.unmask" in filename:
                                 unmask_list.append(str(current_package.cpv))
@@ -302,7 +303,7 @@ def parse_line(line, filename):
                         if (not show_removable_only_flag):
                             if (not checking_package_unmask):
                                 ebuild_output = portage.output.green("Installed: ") + \
-                                portage.output.turquoise(str(current_package.cpv)) + \
+                                portage.output.turquoise(orig_pkg_name) + \
                                 portage.output.yellow("  Keywords " + keywords) 
                         else:
                             ebuild_output = portage.output.yellow(str(current_package.cpv))
@@ -312,13 +313,13 @@ def parse_line(line, filename):
                         if (not is_any_cpv_file_masked(str(current_package.cpv))):
 
                             # package is in package.unmask unnecessarily
-                            ebuild_output = portage.output.yellow("\n" + current_package.cpv  + ": Not package masked")
+                            ebuild_output = portage.output.yellow("\n" + orig_pkg_name  + ": Not package masked")
                             if "package.unmask" in filename:
                                 unmask_list.append(str(current_package.cpv))
                                 print_output (info, "" +  ebuild_output,None, filename)
                                 continue
 
-					# print once
+                    # print once
                     ebuild_search_key_printed = False
                     if ( not has_asterick): # if it has an asterick, then we don't remove
                         if stable:
@@ -330,7 +331,7 @@ def parse_line(line, filename):
                             ebuild_search_key_printed = True
                             print_output(info,"\n" + ebuild_output,current_package)
 
-					# go through all versions of a package
+                    # go through all versions of a package
                     query = Query(current_package.category + "/" + current_package.name)
 
                     all_pkgs = []
@@ -342,11 +343,11 @@ def parse_line(line, filename):
 
                     for a_package in all_pkgs:
                         if not a_package.is_installed():
-							# a_package is not installed
+                            # a_package is not installed
                             pkgmask = _get_mask_status(a_package, False)
-							# print status line of package we are now checking
+                            # print status line of package we are now checking
                             print_output(debug,portage.output.blue("Checking package: " + str(a_package.cpv) +".pkgmask is " + str(pkgmask)))
-							# if package versions are different
+                            # if package versions are different
                             if (VersionMatch(CPV(current_package.cpv)).match(CPV(a_package.cpv))):
                                 diffs_found = True
                                 keylist = a_package.environment("KEYWORDS")
@@ -473,6 +474,7 @@ def parse_package_use(line, filename):
 
     if len(fields) > 0:
         check_pkg = fields[0] # this could be one of <>=
+        orig_pkg_name = check_pkg
         if check_pkg[0] not in atom_check:
             has_atom = False
         else:
@@ -536,7 +538,7 @@ def parse_package_use(line, filename):
                         for current_package in pkgs:
                             if (str(current_package.cpv) == check_pkg):
                                 if not current_package.is_installed():
-                                    print_output(info,portage.output.yellow("\n" + check_pkg + ": ") + portage.output.red("Not Installed"),current_package)
+                                    print_output(info,portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red("Not Installed"),current_package)
                                     if "package.keywords" in filename:
                                         stable_list.append(check_pkg)
                                     if "package.accept_keywords" in filename:
