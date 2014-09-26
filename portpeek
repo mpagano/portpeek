@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.14"
+__version__ = "2.1.15"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -754,8 +754,8 @@ def is_any_cpv_file_masked(package_name):
     mask_reason_list = None
 
     try:
-        for mask_reason_list in portage.getmaskingstatus(cpv, settings2, portdb=portdb2):
-            print ("Mask Reason is " + mask_reason_list)
+        for mask_reason_list in portage.getmaskingstatus(package_name, settings2, portdb=portdb2):
+            print_output(debug,portage.output.blue("Mask Reason is " + mask_reason_list))
             if (mask_reason_list == 'package.mask'):
                 return True
     except:
