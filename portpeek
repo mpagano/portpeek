@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.15"
+__version__ = "2.1.16"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -508,6 +508,7 @@ def parse_package_use(line, filename):
                 if current_package.is_installed():
                     check_useflags(current_package,line)
                     return False
+        check_pkg = (check_pkg.rsplit(':',1))[0]
         
         if ((orig_pkg_name.find("<=") >=0) or (orig_pkg_name.find("<")>=0) or (orig_pkg_name.find(">=") >=0) or (orig_pkg_name.find(">") >=0)):
             query = Query(check_pkg)
