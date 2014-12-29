@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.16"
+__version__ = "2.1.17"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -26,6 +26,7 @@ from portage.const import USER_CONFIG_PATH
 from portage.versions import catpkgsplit,pkgcmp,pkgsplit
 from portage.exception import InvalidAtom
 from gentoolkit.cpv import CPV
+from gentoolkit.package import Package
 from gentoolkit.query import Query
 from gentoolkit.flag import get_iuse
 
@@ -396,12 +397,21 @@ def parse_line(line, filename):
                             print_output (info,portage.output.green("\n" + str(current_package.cpv) + ": ") + portage.output.yellow("Package Masked"),current_package)
         else:
             diffs_found = True
-            print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
             if "package.keywords" in filename:
                 stable_list.append(fields[0])
+                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
             if "package.accept_keywords" in filename:
                 stable_listNg.append(fields[0])
-            unmask_list.append(fields[0])
+                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+            package_name = fields[0]
+            if package_name[0] in atom_check:
+                package_name = package_name[1:]
+            port = Package(package_name)
+            # if package is not installed remove it
+            if ((not port.is_installed())):
+                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+                unmask_list.append(fields[0])
+
             show_all_versions(fields[0], filename)
     current_package = ""
 
