@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.17"
+__version__ = "2.1.18"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -403,14 +403,16 @@ def parse_line(line, filename):
             if "package.accept_keywords" in filename:
                 stable_listNg.append(fields[0])
                 print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
-            package_name = fields[0]
-            if package_name[0] in atom_check:
-                package_name = package_name[1:]
-            port = Package(package_name)
-            # if package is not installed remove it
-            if ((not port.is_installed())):
-                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
-                unmask_list.append(fields[0])
+
+            if "package.unmask" in filename:
+                package_name = fields[0]
+                if package_name[0] in atom_check:
+                    package_name = package_name[1:]
+                port = Package(package_name)
+                # if package is not installed remove it
+                if ((not port.is_installed())):
+                    print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+                    unmask_list.append(fields[0])
 
             show_all_versions(fields[0], filename)
     current_package = ""
