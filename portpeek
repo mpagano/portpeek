@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.18"
+__version__ = "2.1.19"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -409,8 +409,9 @@ def parse_line(line, filename):
                 if package_name[0] in atom_check:
                     package_name = package_name[1:]
                 port = Package(package_name)
-                # if package is not installed remove it
-                if ((not port.is_installed())):
+                package_exists = portage.portdb.xmatch("match-all", package_name)
+                # if package is not installed or does not exist remove it
+                if ( ( not package_exists ) or (not port.is_installed())):
                     print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
                     unmask_list.append(fields[0])
 
