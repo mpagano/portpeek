@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.21"
+__version__ = "2.1.22"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -501,15 +501,15 @@ def parse_package_use(line, filename):
         orig_pkg_name = check_pkg
         if check_pkg[0] not in atom_check:
             has_atom = False
-        #else:
-        #    if check_pkg[0] == '<':
-        #        less_than = True;
-        #        if check_pkg[1] == '=':
-        #            less_than_or_equal = True
+        else:
+            if check_pkg[0] == '<':
+                less_than = True;
+                if check_pkg[1] == '=':
+                    less_than_or_equal = True
 
-        #    check_pkg = check_pkg[1:]
-        #    if check_pkg[0] in atom_check:
-        #        check_pkg = check_pkg[1:]
+            check_pkg = check_pkg[1:]
+            if check_pkg[0] in atom_check:
+                check_pkg = check_pkg[1:]
 
 
         # if there is a wildcard, check to make sure at least one
@@ -593,7 +593,7 @@ def parse_package_use(line, filename):
                 except errors.GentoolkitException as err:
                     print_output(debug,portage.output.blue("Package " + check_pkg + " not found."))
 
-                if (pkgs != None):
+                if (pkgs != None and len(pkgs)>0):
                     pkg_length = len(pkgs)
 
                     # go through each package version for a specific
