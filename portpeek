@@ -1329,6 +1329,7 @@ def cleanFile (filename):
 
                 # make sure line is not empty and do not remove commented out lines
                 if len(line) <= 0:
+                    print("")
                     continue
                 elif line.find("#") == 0:
                     print (line)
