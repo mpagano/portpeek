@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.23"
+__version__ = "2.1.24"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -976,8 +976,22 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
 
     global useremove_display, invalid_flag_found
     invalid_flag_found = False
+    has_use_expand_flags=False
+    original_line = line
 
     print_output(debug,portage.output.blue("ENTERED check_useflags_all_versions: " + check_pkgs))
+
+    # get all USE_EXPAND in array
+    use_expand_list = settings.get('USE_EXPAND', '').split()
+    use_expand_list.sort()
+
+    for use_expand in use_expand_list:
+        index = line.find(use_expand)
+        if ( index != -1 ):
+            has_use_expand_flags=True
+            save_use_expand=line[index:]
+            line = line[:index]
+            break;
 
     potential_invalid_flag = []
     valid_flag_list = []
@@ -1080,10 +1094,10 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
         invalid_flags += inv_flag
 
     # if there are no valid flags at all, we remove the line
-    if ( len(valid_flag_list) == 0):
+    if ( (len(valid_flag_list) == 0) and (has_use_expand_flags == False)):
         print_output (info,portage.output.red("No valid use flags found for package: " + str(package.category) + "/" + str(package.name) + ". Invalid flag(s) found: " + invalid_flags +  "\n"))
-        useremove_display += "Removing line: " + line + "\n"
-        use_flag_dict[line] = ""
+        useremove_display += "Removing line: " + original_line + "\n"
+        use_flag_dict[original_line] = ""
         return
 
     # if there are values in potential_invalid_flag, we need to remove them
@@ -1093,14 +1107,17 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
     else:
         removal_text = "use flag: "
 
-    if ( (len(valid_flag_list) > 0)):
+    if ( ((len(valid_flag_list) > 0)) or (has_use_expand_flags == True)):
         useremove_display += "Removing " + removal_text + invalid_flags + " for package " + check_pkgs + "\n"
         print (portage.output.yellow(removal_text) +  portage.output.red(invalid_flags) + portage.output.yellow(" " + verb + " invalid for " + str(package.cpv)))
 
     valid_flag_list.insert(0,package_string);
 
+    if (has_use_expand_flags == True):
+        valid_flag_list.append(save_use_expand)
+
     if (len(potential_invalid_flag) > 0):
-        use_flag_dict[line] = valid_flag_list
+        use_flag_dict[original_line] = valid_flag_list
 
     return valid_flag_list
 
@@ -1197,6 +1214,7 @@ def clean_useflagsFile(filename):
 
                 # make sure line is not empty and do not remove commented out lines
                 if len(line) <= 0:
+                    print("")
                     continue
                 elif line.find("#") == 0:
                     print (line)
