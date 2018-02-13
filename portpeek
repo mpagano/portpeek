@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.25"
+__version__ = "2.1.26"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -530,12 +530,32 @@ def parse_package_use(line, filename):
 
             if (pkgs != None):
                 pkg_length = len(pkgs)
-            for current_package in pkgs:
 
+            no_installed_package_found = True
+            for current_package in pkgs:
                 # on wildcard scenario, return False if one package is installed
                 if current_package.is_installed():
                     check_useflags(current_package,line)
+                    no_installed_package_found = False
                     return False
+            # handle if no packages found
+            if no_installed_package_found :
+                print (portage.output.red ("\nNo installed packages found for " + check_pkg + "."))
+                if "package.keywords" in filename:
+                    stable_list.append(check_pkg)                                                                                                        
+                if "package.accept_keywords" in filename:
+                    stable_listNg.append(check_pkg)                                                                                                      
+                unmask_list.append(check_pkg)                                                                                                            
+                if "package.use" in filename:
+                    valid_flag_list = []                                                                                                                 
+                    valid_flag_list.insert(0,fields[0]);
+                    use_flag_dict[line] = valid_flag_list                                                                                                
+                    check_for_change = use_flag_dict[line]                                                                                               
+                return True
+
+
+
+
         check_pkg = (check_pkg.rsplit(':',1))[0]
         if ((orig_pkg_name.find("<=") >=0)
             or (orig_pkg_name.find("<")>=0)
@@ -585,7 +605,7 @@ def parse_package_use(line, filename):
         else:
             # look for any version of check_pkg installed as there is
             # no version specified in package.use
-
+            print_output(debug,portage.output.blue("check_pkg is : " + check_pkg))
             package_exists = portage.portdb.xmatch("match-all", check_pkg)
             if package_exists:
                 # get all package versions
