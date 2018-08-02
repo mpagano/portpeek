@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2006 Mike Pagano
+# Copyright 2006-2018 Mike Pagano
 # Distributed under the terms of the GNU General Public License v2
 #
 # $Header$
@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.26"
+__version__ = "2.1.27"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -762,7 +762,7 @@ def is_pkg_package_masked(cpv):
 
     print_output(debug,portage.output.blue("is_pkg_package_masked called: " + cpv))
     settings2 = portage.config(local_config=False)
-    portdb2 = portage.portdbapi(None, settings)
+    portdb2 = portage.portdbapi()
 
     mask_reason_list = None
 
@@ -829,7 +829,7 @@ def is_any_cpv_file_masked(package_name):
 
     print_output(debug,portage.output.blue("is_any_cpv_file_masked called: " + package_name))
     settings2 = portage.config(local_config=False)
-    portdb2 = portage.portdbapi(None, settings)
+    portdb2 = portage.portdbapi()
 
     mask_reason_list = None
 
