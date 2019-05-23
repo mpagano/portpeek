@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.27"
+__version__ = "2.1.28"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -125,7 +125,7 @@ def print_usage():
     print (portage.output.yellow(" -s, --package.use") + "   - show matches from package.use only")
 
     print (portage.output.yellow(" -f, --fix") + "       - will remove the stabled and invalid packages without asking for confirmation")
-    print (portage.output.yellow(" -q, --confirm-fix") +"    - will remove the stabled and invalid packages asking for confirmation before doing so")
+    print (portage.output.yellow(" -q, --fix-confirm") +"    - will remove the stabled and invalid packages asking for confirmation before doing so")
     print (portage.output.yellow(" -h, --help") + "      - display this message")
     print (portage.output.yellow(" -d, --debug") + "         - display more verbose output for debugging")
     print (portage.output.yellow(" -V, --version") + "       - display version info")
