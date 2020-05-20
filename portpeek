@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.28"
+__version__ = "2.1.29"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -223,6 +223,10 @@ def parse_line(line, filename):
         if (tilde == 1):
             if check_pkg[0] in "~":
                 check_tilde_masked_pkg(check_pkg, filename)
+                return
+        else:
+            # if it has a tilde, and we are not checking tilde packages, exit function
+            if check_pkg[0] in "~":
                 return
 
         # determine if the package exists
