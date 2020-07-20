@@ -16,11 +16,11 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "2.1.29"
+__version__ = "3.0.0"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
-import sys, os, portage, fileinput, re, gentoolkit
+import sys, os, portage, fileinput, functools, re, gentoolkit
 from gentoolkit.versionmatch import VersionMatch,errors
 from portage.const import USER_CONFIG_PATH
 from portage.versions import catpkgsplit,pkgcmp,pkgsplit
@@ -733,6 +733,7 @@ def skipFile (line, filename):
 # parts blatantly stolen from equery
 # if pure is true, then get "true" mask status that is
 # not affected by entries in /etc/portage/package.*
+@functools.lru_cache(maxsize=128)
 def _get_mask_status(pkg, pure):
     pkgmask = 0
 
@@ -766,18 +767,22 @@ def _get_mask_status(pkg, pure):
 def is_pkg_package_masked(cpv):
 
     print_output(debug,portage.output.blue("is_pkg_package_masked called: " + cpv))
-    settings2 = portage.config(local_config=False)
-    portdb2 = portage.portdbapi()
+    mask_reason_list = get_mask_reason_list(cpv)
 
-    mask_reason_list = None
-
-    try:
-        for mask_reason_list in portage.getmaskingstatus(cpv, settings2, portdb=portdb2):
-            return True
-    except:
-        return False
+    if not mask_reason_list:
+        return True
 
     return False
+
+def get_mask_reason_list(cpv):
+    print_output(debug,portage.output.blue("get_mask_reason_list  called: " + cpv))
+    mask_reason_list = []
+
+    try:
+        mask_reason_list = portage.getmaskingstatus(cpv, settings2, portdb=portdb2)
+        return mask_reason_list
+    except:
+        return []
 
 # filter out keywords for archs other than the current one
 def filter_keywords(keywords):
@@ -833,20 +838,20 @@ def is_any_cpv_keyword_masked(package_name):
 def is_any_cpv_file_masked(package_name):
 
     print_output(debug,portage.output.blue("is_any_cpv_file_masked called: " + package_name))
-    settings2 = portage.config(local_config=False)
-    portdb2 = portage.portdbapi()
 
     mask_reason_list = None
+    mask_reason_list = get_mask_reason_list(cpv)
 
     try:
-        for mask_reason_list in portage.getmaskingstatus(package_name, settings2, portdb=portdb2):
-            print_output(debug,portage.output.blue("Mask Reason is " + mask_reason_list))
-            if (mask_reason_list == 'package.mask'):
+        for mask_reason_item in mask_reason_list:
+            print_output(debug,portage.output.blue("Mask Reason is " + mask_reason_item))
+            if (mask_reason_item == 'package.mask'):
                 return True
     except:
         return False
 
     return False
+
 
 
 
