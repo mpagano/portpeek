@@ -38,7 +38,8 @@ except NameError:
 
 porttree = portage.db[portage.root]["porttree"]
 settings = portage.config(clone=portage.settings)
-#settings = portage.config(local_config=False)
+settings2 = portage.config(local_config=False)
+portdb2 = portage.portdbapi()
 
 show_changes_only_flag = False
 checking_package_unmask = False
