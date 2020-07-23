@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "3.0.1"
+__version__ = "3.1.1"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -44,6 +44,7 @@ portdb2 = portage.portdbapi()
 show_changes_only_flag = False
 checking_package_unmask = False
 checking_package_mask = False
+checking_env_file = False
 print_overlay_flag = False
 info = 0
 debug = 1
@@ -52,6 +53,7 @@ show_removable_only_flag = False
 stable_list = []
 stable_listNg = [] # handle package.accept_keywords
 unmask_list = []
+env_list = []
 tilde = 0
 processing_package_use = False
 using_gentoo_as_overlay = False
@@ -75,6 +77,7 @@ options = [
 "--keyword",
 "--unmask",
 "--mask",
+"--package-env",
 "--all",
 "--changes-only",
 "--version",
@@ -100,6 +103,7 @@ mappings = {
 "h":"--help",
 "r":"--removable-only",
 "d":"--debug",
+"e":"--package-env",
 "f":"--fix",
 "t":"--tilde-check",
 "n":"--no-color",
@@ -124,6 +128,7 @@ def print_usage():
     print (portage.output.yellow(" -m, --mask") + "      - show matches from package.mask only")
     print (portage.output.yellow(" -u, --unmask") + "        - show matched from package.unmask only")
     print (portage.output.yellow(" -s, --package.use") + "   - show matches from package.use only")
+    print (portage.output.yellow(" -e, --package.env") + "   - show matches from package.env only")
     print (portage.output.yellow(" -t, --tilde-check") + "   - process tilde entries ~(cat/pkg-version)")
 
     print (portage.output.yellow(" -f, --fix") + "       - will remove the stabled and invalid packages without asking for confirmation")
@@ -194,6 +199,15 @@ def parse_line(line, filename):
     display_done = False
 
     fields = line.replace("\t", " ").split(" ")
+
+    # package.env handling
+    if (checking_env_file == True):
+        if (len(fields) > 0 ):
+            package_exists = portage.portdb.xmatch("match-all", fields[0])
+            if (len(package_exists) == 0):
+                env_list.append(str(fields[0]))
+                print_output(info,portage.output.yellow("\n" + fields[0] + ": ") + portage.output.red("Not Installed") , None, filename)
+        return
 
     if len(fields) > 0:
         #if the line does not start with an atom such as (= or >), do not validate
@@ -273,6 +287,8 @@ def parse_line(line, filename):
                                     stable_list.append(str(current_package.cpv))
                                 if "package.accept_keywords" in filename:
                                     stable_listNg.append(str(current_package.cpv))
+                                if "package.env" in filename:
+                                    env_list.append(str(current_package.cpv))
                                 unmask_list.append(str(current_package.cpv))
                             else:
                                 # package is masked, and not installed, this is normal use of package.mask
@@ -1332,10 +1348,10 @@ def print_output(log_level,output_string, package=None, filename=None):
         if (package.is_overlay()):
             output_string = "%s%s" % (output_string,portage.output.turquoise(handle_if_overlay(package)))
             #output_string = output_string + portage.output.turquoise(handle_if_overlay(package))
-        else:
-            if filename != None:
-                output_string = "%s%s" % (output_string,portage.output.brown(" : " + filename))
-                #output_string = output_string + portage.output.brown(" : " + filename)
+    else:
+        if filename != None:
+            output_string = "%s%s" % (output_string,portage.output.brown(" : " + filename))
+             #output_string = output_string + portage.output.brown(" : " + filename)
 
     if (log_level <= logLevel):
         print (output_string)
@@ -1361,6 +1377,10 @@ def cleanFile (filename):
         if ( len(stable_list) == 0):
             return
         removeDups = stable_list
+    elif "package.env" in filename:
+        if ( len(env_list) == 0):
+            return
+        removeDups = env_list
     elif "package.accept_keywords" in filename:
         if ( len(stable_listNg) == 0):
             return
@@ -1426,6 +1446,7 @@ def confirmFix():
     if ( (len(stable_list) == 0) and
           (len(stable_listNg) == 0) and
           (len(unmask_list) == 0) and
+          (len(env_list) == 0) and
           (invalid_flag_found == False) and
           (len(use_flag_dict) == 0)):
         fix_confirm = True
@@ -1579,6 +1600,13 @@ if __name__ == "__main__":
                 cleanFile(USER_CONFIG_PATH + "/package.use")
                 clean_useflagsFile(USER_CONFIG_PATH + "/package.use")
             print (portage.output.bold("Done\n"))
+        elif cmd == "--package-env":
+            print (portage.output.bold("\npackage.env:"))
+            checking_env_file = True
+            get_recursive_info(USER_CONFIG_PATH + "/package.env")
+            if "--fix" in cmdline:
+                cleanFile(USER_CONFIG_PATH + "/package.env")
+            print (portage.output.bold("Done\n"))
         elif cmd == "--all":
             print (portage.output.bold("\npackage.keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.keywords")
@@ -1594,12 +1622,17 @@ if __name__ == "__main__":
             print (portage.output.bold("\npackage.use:"))
             processing_package_use = True
             get_recursive_info(USER_CONFIG_PATH + "/package.use")
+            print (portage.output.bold("\npackage.env:"))
+            processing_package_use = False
+            checking_env_file = True
+            get_recursive_info(USER_CONFIG_PATH + "/package.env")
             if "--fix" in cmdline:
                 cleanFile(USER_CONFIG_PATH + "/package.keywords")
                 cleanFile(USER_CONFIG_PATH + "/package.accept_keywords")
                 cleanFile(USER_CONFIG_PATH + "/package.unmask")
                 cleanFile(USER_CONFIG_PATH + "/package.use")
                 cleanFile(USER_CONFIG_PATH + "/package.mask")
+                cleanFile(USER_CONFIG_PATH + "/package.env")
                 clean_useflagsFile(USER_CONFIG_PATH + "/package.use")
             print (portage.output.bold("\nDone\n"))
 

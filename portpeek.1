@@ -7,10 +7,10 @@ portpeek \- Package (un)masking management script
 [\fIoptions\fR] \fIcommand\fR 
 .TP
 .BR portpeek
-\fB\-\-keyword\fR | \fB\-\-unmask\fR | \fB\-\-mask\fR | \fB\-\-package\-use\fR | \fB\-\-all
+\fB\-\-keyword\fR | \fB\-\-unmask\fR | \fB\-\-mask\fR | \fB\-\-package\-use\fR | \fB\-\-package\-env\fR | \fB\-\-all
 .TP
 .BR portpeek
-\fB\-\-changes-only\fR [\fB--keyword\fR | \fB\-\-unmask\fR | \fB\-\-mask\fR | \fB\-\-package\-use\fR | \fB\-\-all]
+\fB\-\-changes-only\fR [\fB--keyword\fR | \fB\-\-unmask\fR | \fB\-\-mask\fR | \fB\-\-package\-use\fR | \fB\-\-package\-env\fR | \fB\-\-all\fR]
 .SH "DESCRIPTION"
 \fBportpeek\fR is a utility script that will process a system's package.*
 files and display to the user potential package upgrades. Along with displaying
@@ -59,6 +59,9 @@ show matches from package.unmask only
 .PP
 .B \-s, \-\-package-use
 show matches from package.use only
+.PP
+.B \-e, \-\-package-env
+show matches from package.env only
 .PP
 .B \-t, \-\-tilde-check
 process tilde entries ~(cat/pkg-version) 
