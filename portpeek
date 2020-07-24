@@ -16,14 +16,16 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "3.1.1"
+__version__ = "3.1.2"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
 import sys, os, portage, fileinput, functools, re, gentoolkit
-from gentoolkit.versionmatch import VersionMatch,errors
+from typing import List
+
+from gentoolkit.versionmatch import VersionMatch, errors
 from portage.const import USER_CONFIG_PATH
-from portage.versions import catpkgsplit,pkgcmp,pkgsplit
+from portage.versions import catpkgsplit, pkgcmp, pkgsplit
 from portage.exception import InvalidAtom
 from gentoolkit.cpv import CPV
 from gentoolkit.package import Package
@@ -46,12 +48,13 @@ checking_package_unmask = False
 checking_package_mask = False
 checking_env_file = False
 print_overlay_flag = False
+check_for_dup_use_flags = False
 info = 0
 debug = 1
 logLevel = info
 show_removable_only_flag = False
 stable_list = []
-stable_listNg = [] # handle package.accept_keywords
+stable_listNg = []  # handle package.accept_keywords
 unmask_list = []
 env_list = []
 tilde = 0
@@ -63,92 +66,107 @@ fix_asked = False
 use_flag_dict = {}
 useremove_display = ""
 invalid_flag_found = False
-python_use_expand = ["PYTHON_TARGETS","PYTHON_SINGLE_TARGET","python_target","python_single_target"]
+dup_dict = {}
+python_use_expand = ["PYTHON_TARGETS", "PYTHON_SINGLE_TARGET", "python_target", "python_single_target"]
 
 try:
     PORTAGE_CONFIGROOT
 except NameError:
-    PORTAGE_CONFIGROOT="/"
+    PORTAGE_CONFIGROOT = "/"
 
-USER_CONFIG_PATH=PORTAGE_CONFIGROOT + USER_CONFIG_PATH
+USER_CONFIG_PATH = PORTAGE_CONFIGROOT + USER_CONFIG_PATH
 
-#parameters
+# parameters
 options = [
-"--keyword",
-"--unmask",
-"--mask",
-"--package-env",
-"--all",
-"--changes-only",
-"--version",
-"--version",
-"--help",
-"--removable-only",
-"--debug",
-"--fix",
-"--tilde-check",
-"--no-color",
-"--package-use",
-"--fix-confirm"
+    "--keyword",
+    "--unmask",
+    "--mask",
+    "--package-env",
+    "--all",
+    "--changes-only",
+    "--version",
+    "--version",
+    "--help",
+    "--removable-only",
+    "--debug",
+    "--fix",
+    "--tilde-check",
+    "--no-color",
+    "--package-use",
+    "--make-conf-use",
+    "--fix-confirm"
 ]
 
 mappings = {
-"k":"--keyword",
-"u":"--unmask",
-"m":"--mask",
-"a":"--all",
-"c":"--changes-only",
-"V":"--version",
-"v":"--version",
-"h":"--help",
-"r":"--removable-only",
-"d":"--debug",
-"e":"--package-env",
-"f":"--fix",
-"t":"--tilde-check",
-"n":"--no-color",
-"s":"--package-use",
-"q":"--fix-confirm"
+    "k": "--keyword",
+    "u": "--unmask",
+    "m": "--mask",
+    "a": "--all",
+    "c": "--changes-only",
+    "V": "--version",
+    "v": "--version",
+    "h": "--help",
+    "r": "--removable-only",
+    "d": "--debug",
+    "e": "--package-env",
+    "f": "--fix",
+    "t": "--tilde-check",
+    "n": "--no-color",
+    "s": "--package-use",
+    "z": "--make-conf-use",
+    "q": "--fix-confirm"
 }
 
 cmdline = []
 overlays = [settings["PORTDIR_OVERLAY"]]
 
+
 def print_usage():
     # Print full usage information for this tool to the console.
-    print ("\nUsage: " + portage.output.turquoise(__productname__) +  portage.output.yellow(" command "))
-    print ("       " + portage.output.turquoise(__productname__) + portage.output.green(" [ options ]") +  portage.output.yellow(" command "))
-    print ("       " + portage.output.turquoise(__productname__) + portage.output.green(" [-c]") + portage.output.yellow(" [akmu]"))
-    print ("       " + portage.output.turquoise(__productname__) + portage.output.green(" [-r]") + portage.output.yellow(" [akmu]"))
-    print ("       " + portage.output.turquoise(__productname__) + portage.output.green(" [-f]") + portage.output.yellow(" [akmu]"))
-    print ("       " + portage.output.turquoise(__productname__) + portage.output.green(" [-F]") + portage.output.yellow(" [akmu]"))
-    print (portage.output.yellow(" command ") + " can be ")
-    print (portage.output.yellow(" -a, --all") + "       - show all matches")
-    print (portage.output.yellow(" -k, --keyword") + "       - show matches from package.keywords and package.accept_keywords only")
-    print (portage.output.yellow(" -m, --mask") + "      - show matches from package.mask only")
-    print (portage.output.yellow(" -u, --unmask") + "        - show matched from package.unmask only")
-    print (portage.output.yellow(" -s, --package.use") + "   - show matches from package.use only")
-    print (portage.output.yellow(" -e, --package.env") + "   - show matches from package.env only")
-    print (portage.output.yellow(" -t, --tilde-check") + "   - process tilde entries ~(cat/pkg-version)")
+    print("\nUsage: " + portage.output.turquoise(__productname__) + portage.output.yellow(" command "))
+    print("       " + portage.output.turquoise(__productname__) + portage.output.green(
+        " [ options ]") + portage.output.yellow(" command "))
+    print("       " + portage.output.turquoise(__productname__) + portage.output.green(" [-c]") + portage.output.yellow(
+        " [akmu]"))
+    print("       " + portage.output.turquoise(__productname__) + portage.output.green(" [-r]") + portage.output.yellow(
+        " [akmu]"))
+    print("       " + portage.output.turquoise(__productname__) + portage.output.green(" [-f]") + portage.output.yellow(
+        " [akmu]"))
+    print("       " + portage.output.turquoise(__productname__) + portage.output.green(" [-F]") + portage.output.yellow(
+        " [akmu]"))
+    print(portage.output.yellow(" command ") + " can be ")
+    print(portage.output.yellow(" -a, --all") + "           - show all matches")
+    print(portage.output.yellow(
+        " -k, --keyword") + "       - show matches from package.keywords and package.accept_keywords only")
+    print(portage.output.yellow(" -m, --mask") + "          - show matches from package.mask only")
+    print(portage.output.yellow(" -u, --unmask") + "        - show matched from package.unmask only")
+    print(portage.output.yellow(" -s, --package.use") + "   - show matches from package.use only")
+    print(portage.output.yellow(" -e, --package.env") + "   - show matches from package.env only")
+    print(portage.output.yellow(" -t, --tilde-check") + "   - process tilde entries ~(cat/pkg-version)")
 
-    print (portage.output.yellow(" -f, --fix") + "       - will remove the stabled and invalid packages without asking for confirmation")
-    print (portage.output.yellow(" -q, --fix-confirm") +"    - will remove the stabled and invalid packages asking for confirmation before doing so")
-    print (portage.output.yellow(" -h, --help") + "      - display this message")
-    print (portage.output.yellow(" -d, --debug") + "         - display more verbose output for debugging")
-    print (portage.output.yellow(" -V, --version") + "       - display version info")
-    print (portage.output.green("options") + " are ")
-    print (portage.output.green(" -c, --changes-only") + \
-        "   - show all matches that have upgrade option, use with " + \
-        "<" + portage.output.yellow(" k ") + "|" + portage.output.yellow(" u ") + \
-        "|" + portage.output.yellow(" m ") + "|" + \
-        portage.output.yellow(" a ") + ">")
-    print (portage.output.green(" -n, --no-color") + \
-        "   - suppress color output")
-    print (portage.output.green(" -r, --removable-only") + \
-        "   - show all matches that can be removed from package files, use with " + \
-        "<" + portage.output.yellow(" k ") + "|" + portage.output.yellow(" u ") + \
-        "|" + portage.output.yellow(" m ") + "|" + \
-        portage.output.yellow(" a ") + ">\n")
+    print(portage.output.yellow(
+        " -f, --fix") + "           - will remove the stabled and invalid packages without asking for confirmation")
+    print(portage.output.yellow(
+        " -z, --make-conf-use") + " - will print a notice for use flags duplicated in both package.use and make.conf, only works with -s or -a")
+    print(portage.output.yellow(
+        " -q, --fix-confirm") + "   - will remove the stabled and invalid packages asking for confirmation before doing so")
+    print(portage.output.yellow(" -h, --help") + "          - display this message")
+    print(portage.output.yellow(" -d, --debug") + "         - display more verbose output for debugging")
+    print(portage.output.yellow(" -V, --version") + "       - display version info")
+    print(portage.output.green("options") + " are ")
+    print(portage.output.green(" -c, --changes-only") + \
+          "  - show all matches that have upgrade option, use with " + \
+          "<" + portage.output.yellow(" k ") + "|" + portage.output.yellow(" u ") + \
+          "|" + portage.output.yellow(" m ") + "|" + \
+          portage.output.yellow(" a ") + ">")
+    print(portage.output.green(" -n, --no-color") + \
+          "      - suppress color output")
+    print(portage.output.green(" -r, --removable-only") + \
+          "   - show all matches that can be removed from package files, use with " + \
+          "<" + portage.output.yellow(" k ") + "|" + portage.output.yellow(" u ") + \
+          "|" + portage.output.yellow(" m ") + "|" + \
+          portage.output.yellow(" a ") + ">\n")
+
 
 def get_keywords(package, var):
     mytree = porttree
@@ -156,21 +174,20 @@ def get_keywords(package, var):
     try:
         keywords = package.environment("KEYWORDS").split()
     except KeyError as error:
-        print ("!!! Portpeek caught Exception:" + format(error))
-        print ("!!! This package/version seems to be no longer available, " + \
-        "please check and update/unmerge it")
+        print("!!! Portpeek caught Exception:" + format(error))
+        print("!!! This package/version seems to be no longer available, " + \
+              "please check and update/unmerge it")
         return "Not Available/Deprecated"
 
-    #filtered_keywords = filter_keywords(keywords[0])
+    # filtered_keywords = filter_keywords(keywords[0])
     filtered_keywords = filter_keywords(keywords)
     return filtered_keywords
-
 
 
 # this is the main function for portpeek
 # TODO comment this code!
 def parse_line(line, filename):
-    global info,debug,using_gentoo_as_overlay
+    global info, debug, using_gentoo_as_overlay
 
     using_gentoo_as_overlay = False
     pkgs = None
@@ -178,22 +195,22 @@ def parse_line(line, filename):
     check_pkg = ""
     not_installed_pkgs = 0
     pkg_length = 0
-    atom_check="<>=~"
+    atom_check = "<>=~"
     original_line = line
     has_asterick = False
 
     # if the line has special characters, we need to make sure the original line is used for matching
     special_line = False
 
-    pattern=r'[<>:*]'
+    pattern = r'[<>:*]'
 
-    if ( (re.search(pattern,line) != None) ):
+    if ((re.search(pattern, line) != None)):
         special_line = True
 
     if check_pkg.endswith('*'):
         has_asterick = True
 
-    print_output(debug,portage.output.blue("Analyzing line: " + line))
+    print_output(debug, portage.output.blue("Analyzing line: " + line))
 
     diffs_found = False
     display_done = False
@@ -202,21 +219,22 @@ def parse_line(line, filename):
 
     # package.env handling
     if (checking_env_file == True):
-        if (len(fields) > 0 ):
+        if (len(fields) > 0):
             package_exists = portage.portdb.xmatch("match-all", fields[0])
             if (len(package_exists) == 0):
                 env_list.append(str(fields[0]))
-                print_output(info,portage.output.yellow("\n" + fields[0] + ": ") + portage.output.red("Not Installed") , None, filename)
+                print_output(info, portage.output.yellow("\n" + fields[0] + ": ") + portage.output.red("Not Installed"),
+                             None, filename)
         return
 
     if len(fields) > 0:
-        #if the line does not start with an atom such as (= or >), do not validate
-        #status as this tool is for check specific versions and not entire packages
+        # if the line does not start with an atom such as (= or >), do not validate
+        # status as this tool is for check specific versions and not entire packages
         # a ~cpv should be handled like an =cpv if requested bythe parameter -t
-        check_pkg = fields[0] # this should be one of <>=~
+        check_pkg = fields[0]  # this should be one of <>=~
         orig_pkg_name = check_pkg
         overlay_index = check_pkg.find("::")
-        if ( overlay_index >= 0):
+        if (overlay_index >= 0):
             overlay_list = check_pkg.rsplit("::")
             if (len(overlay_list) > 0):
                 overlay_name = overlay_list[1]
@@ -230,9 +248,10 @@ def parse_line(line, filename):
 
             if (checking_package_unmask == True):
 
-                print_output(debug,portage.output.blue("check_pkg is " + check_pkg + " found"))
+                print_output(debug, portage.output.blue("check_pkg is " + check_pkg + " found"))
                 if (is_any_cpv_keyword_masked(check_pkg) == False):
-                    print_output(info,portage.output.red("No masked versions of " + check_pkg + " found. Tagged for removal."))
+                    print_output(info, portage.output.red(
+                        "No masked versions of " + check_pkg + " found. Tagged for removal."))
                     unmask_list.append(str(check_pkg))
             return
         if (tilde == 1):
@@ -253,11 +272,11 @@ def parse_line(line, filename):
         if package_exists:
             # return a Package List based on the cpv
             query = Query(check_pkg)
-            #query = Query(fields[0])
+            # query = Query(fields[0])
             pkgs = []
 
             try:
-                pkgs = query.smart_find(True,True,True,True,False,True)
+                pkgs = query.smart_find(True, True, True, True, False, True)
             except errors.GentoolkitException as err:
                 pass
 
@@ -282,7 +301,9 @@ def parse_line(line, filename):
                         if (check_pkg == str(current_package.cpv)):
                             if (not checking_package_mask):
                                 # package is not installed
-                                print_output(info,portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red("Not Installed") , current_package, filename)
+                                print_output(info,
+                                             portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red(
+                                                 "Not Installed"), current_package, filename)
                                 if "package.keywords" in filename:
                                     stable_list.append(str(current_package.cpv))
                                 if "package.accept_keywords" in filename:
@@ -292,20 +313,22 @@ def parse_line(line, filename):
                                 unmask_list.append(str(current_package.cpv))
                             else:
                                 # package is masked, and not installed, this is normal use of package.mask
-                                print_output(info,portage.output.green("" + orig_pkg_name + ": ") + portage.output.yellow("Package Masked"),current_package, filename)
+                                print_output(info,
+                                             portage.output.green("" + orig_pkg_name + ": ") + portage.output.yellow(
+                                                 "Package Masked"), current_package, filename)
                             display_done = True
                         continue
 
                     # package is installed
                     # retrieve the keywords for a file
-                    keywords = "%s" % (get_keywords(current_package,"KEYWORDS").split())
+                    keywords = "%s" % (get_keywords(current_package, "KEYWORDS").split())
                     if (keywords.find("Available/Deprecated") >= 0):
                         continue
 
-                    #retrieve the mask status of a specific package
+                    # retrieve the mask status of a specific package
                     pkgmask = _get_mask_status(current_package, False)
 
-                    #determine if installed package is unmasked, if so, display keywords as green
+                    # determine if installed package is unmasked, if so, display keywords as green
                     stable = check_for_stable_release(current_package)
 
                     # do not display if keywords don't exist
@@ -313,10 +336,10 @@ def parse_line(line, filename):
                         continue
 
                     if stable:
-                        if ( not has_asterick): # if it has an asterick, then we don't remove
+                        if (not has_asterick):  # if it has an asterick, then we don't remove
                             ebuild_output = portage.output.green("Installed: ") + \
-                                portage.output.turquoise(orig_pkg_name) + \
-                                portage.output.green("  Keywords " + keywords)
+                                            portage.output.turquoise(orig_pkg_name) + \
+                                            portage.output.green("  Keywords " + keywords)
                             if "package.unmask" in filename:
                                 unmask_list.append(str(current_package.cpv))
                             if "package.keywords" in filename:
@@ -327,33 +350,34 @@ def parse_line(line, filename):
                         if (not show_removable_only_flag):
                             if (not checking_package_unmask):
                                 ebuild_output = portage.output.green("Installed: ") + \
-                                portage.output.turquoise(orig_pkg_name) + \
-                                portage.output.yellow("  Keywords " + keywords)
+                                                portage.output.turquoise(orig_pkg_name) + \
+                                                portage.output.yellow("  Keywords " + keywords)
                         else:
                             ebuild_output = portage.output.yellow(str(current_package.cpv))
 
-	            # check package.unmask
+                    # check package.unmask
                     if (checking_package_unmask):
                         if (not is_any_cpv_file_masked(str(current_package.cpv))):
 
                             # package is in package.unmask unnecessarily
-                            ebuild_output = portage.output.yellow("\n" + orig_pkg_name  + ": ") + portage.output.green("Not package masked")
+                            ebuild_output = portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.green(
+                                "Not package masked")
                             if "package.unmask" in filename:
                                 unmask_list.append(orig_pkg_name)
-                                print_output (info, "" +  ebuild_output,None, filename)
+                                print_output(info, "" + ebuild_output, None, filename)
                                 continue
 
                     # print once
                     ebuild_search_key_printed = False
-                    if ( not has_asterick): # if it has an asterick, then we don't remove
+                    if (not has_asterick):  # if it has an asterick, then we don't remove
                         if stable:
                             diffs_found = False
                             ebuild_search_key_printed = True
-                            print_output(info,"\n" + ebuild_output,current_package, filename)
+                            print_output(info, "\n" + ebuild_output, current_package, filename)
                         elif not show_changes_only_flag and not show_removable_only_flag:
                             diffs_found = False
                             ebuild_search_key_printed = True
-                            print_output(info,"\n" + ebuild_output,current_package)
+                            print_output(info, "\n" + ebuild_output, current_package)
 
                     # go through all versions of a package
                     query = Query(current_package.category + "/" + current_package.name)
@@ -361,47 +385,54 @@ def parse_line(line, filename):
                     all_pkgs = []
 
                     try:
-                        all_pkgs = query.smart_find(True,True,True,True,False,True)
+                        all_pkgs = query.smart_find(True, True, True, True, False, True)
                     except errors.GentoolkitException as err:
-                        print_output(debug,portage.output.blue("Package " + current_package.category + "/" + current_package.name + " not found."))
+                        print_output(debug, portage.output.blue(
+                            "Package " + current_package.category + "/" + current_package.name + " not found."))
 
                     for a_package in all_pkgs:
                         if not a_package.is_installed():
                             # a_package is not installed
                             pkgmask = _get_mask_status(a_package, False)
                             # print status line of package we are now checking
-                            print_output(debug,portage.output.blue("Checking package: " + str(a_package.cpv) +".pkgmask is " + str(pkgmask)))
+                            print_output(debug, portage.output.blue(
+                                "Checking package: " + str(a_package.cpv) + ".pkgmask is " + str(pkgmask)))
                             # if package versions are different
                             if (VersionMatch(CPV(current_package.cpv)).match(CPV(a_package.cpv))):
                                 diffs_found = True
                                 keylist = a_package.environment("KEYWORDS")
                                 keywords = "%s" % (filter_keywords(keylist)).split()
-                                #if a_package is masked
+                                # if a_package is masked
                                 if pkgmask > 0 and not show_removable_only_flag:
                                     if show_changes_only_flag and not ebuild_search_key_printed:
-                                        print_output (info, "\n" +  ebuild_output, current_package)
+                                        print_output(info, "\n" + ebuild_output, current_package)
                                         ebuild_search_key_printed = True
                                         check_for_stable_release(current_package)
                                     if (pkgmask >= 3):
-                                        print_output (info,portage.output.red("Available: " + str(a_package.cpv) + " [M] Keywords: " + keywords),a_package)
+                                        print_output(info, portage.output.red(
+                                            "Available: " + str(a_package.cpv) + " [M] Keywords: " + keywords),
+                                                     a_package)
                                     else:
-                                        print_output (info,portage.output.brown("Available: " + str(a_package.cpv) + " Keywords: " + keywords),a_package)
+                                        print_output(info, portage.output.brown(
+                                            "Available: " + str(a_package.cpv) + " Keywords: " + keywords), a_package)
                                 else:
                                     if show_changes_only_flag and not ebuild_search_key_printed:
-                                        print_output (info,"\n" + ebuild_output,current_package)
+                                        print_output(info, "\n" + ebuild_output, current_package)
                                         ebuild_search_key_printed = True
-                                        print_output(info,portage.output.green("Available: " + str(a_package.cpv) + " Keywords: " + keywords),a_package)
-                #else:
-                    #print (portage.output.red ("\nCannot find package: " + check_pkg))
+                                        print_output(info, portage.output.green(
+                                            "Available: " + str(a_package.cpv) + " Keywords: " + keywords), a_package)
+                # else:
+                # print (portage.output.red ("\nCannot find package: " + check_pkg))
 
                 # if package does not exist, and current_package is None
                 # then make package using fields[0]
 
                 # display if pkg/cat is not installed (missing version)
-                if not_installed_pkgs ==  pkg_length:
+                if not_installed_pkgs == pkg_length:
                     if not display_done:
                         if (not checking_package_mask):
-                            print_output(info,portage.output.yellow("\n" + fields[0] + ": ") + portage.output.red("Not Installed"),current_package)
+                            print_output(info, portage.output.yellow("\n" + fields[0] + ": ") + portage.output.red(
+                                "Not Installed"), current_package)
                             if "package.keywords" in filename:
                                 if (special_line == False):
                                     stable_list.append(str(current_package.cpv))
@@ -417,15 +448,19 @@ def parse_line(line, filename):
                             else:
                                 unmask_list.append(original_line)
                         else:
-                            print_output (info,portage.output.green("\n" + str(current_package.cpv) + ": ") + portage.output.yellow("Package Masked"),current_package)
+                            print_output(info, portage.output.green(
+                                "\n" + str(current_package.cpv) + ": ") + portage.output.yellow("Package Masked"),
+                                         current_package)
         else:
             diffs_found = True
             if "package.keywords" in filename:
                 stable_list.append(fields[0])
-                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+                print(portage.output.red(
+                    "\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
             if "package.accept_keywords" in filename:
                 stable_listNg.append(fields[0])
-                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+                print(portage.output.red(
+                    "\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
 
             if "package.unmask" in filename:
                 package_name = fields[0]
@@ -434,8 +469,9 @@ def parse_line(line, filename):
                 port = Package(package_name)
                 package_exists = portage.portdb.xmatch("match-all", package_name)
                 # if package is not installed or does not exist remove it
-                if ( ( not package_exists ) or (not port.is_installed())):
-                    print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+                if ((not package_exists) or (not port.is_installed())):
+                    print(portage.output.red(
+                        "\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
                     unmask_list.append(fields[0])
 
             show_all_versions(fields[0], filename)
@@ -443,20 +479,20 @@ def parse_line(line, filename):
 
     return diffs_found
 
+
 # adding support for etc/portage/package.keywords/<whatever>/package.keywords
 def get_recursive_info(filename):
-
     # determine if filename is a directory
     if os.path.isdir(filename):
         # get listing of directory
         filenames = os.listdir(filename)
         for file_name in filenames:
-            get_recursive_info(filename+os.path.sep+file_name)
+            get_recursive_info(filename + os.path.sep + file_name)
     else:
         get_info(filename)
 
-def get_info(filename):
 
+def get_info(filename):
     diffs_found = False
     no_file = False
     filedescriptor = None
@@ -464,13 +500,13 @@ def get_info(filename):
     try:
         filedescriptor = open(filename)
         for line in filedescriptor.readlines():
-            use_expand_found=False
+            use_expand_found = False
             line = line.strip()
             if len(line) <= 0:
                 continue
             elif line.find("#") >= 0:
                 # found '#' remove comment
-                if (skipFile(line,filename)):
+                if (skipFile(line, filename)):
                     return
                 line = line[0:line.find("#")]
                 line = line.strip()
@@ -478,41 +514,41 @@ def get_info(filename):
                     continue
             # ignore use expands
             for python_use_expand_flag in python_use_expand:
-                if line.find(python_use_expand_flag) >=0:
-                    use_expand_found=True
-                    break 
-            if (use_expand_found==True):
+                if line.find(python_use_expand_flag) >= 0:
+                    use_expand_found = True
+                    break
+            if (use_expand_found == True):
                 continue
 
             if (processing_package_use == False):
                 diffs_found = parse_line(line, filename)
             else:
                 # process package.use
-                diffs_found = parse_package_use(line,filename)
+                diffs_found = parse_package_use(line, filename)
     except IOError:
-        print (portage.output.red("Could not find file " + filename))
+        print(portage.output.red("Could not find file " + filename))
         no_file = True
     except UnicodeDecodeError:
         return
 
     if not diffs_found and no_file:
-        print (portage.output.brown("No ebuild options found."))
+        print(portage.output.brown("No ebuild options found."))
 
     # close file
     if (filedescriptor != None):
         filedescriptor.close()
 
+
 # parse the package.use file and look for packages
 # not installed
 def parse_package_use(line, filename):
-
-    global info,debug
-    print_output(debug,portage.output.blue("parse_package_use: Line: " + line))
+    global info, debug
+    print_output(debug, portage.output.blue("parse_package_use: Line: " + line))
 
     pkgs = None
     check_pkg = ""
     pkg_length = 0
-    atom_check="<>="
+    atom_check = "<>="
     any_version = False
     has_atom = True
     has_asterick = False
@@ -522,7 +558,7 @@ def parse_package_use(line, filename):
     fields = line.replace("\t", " ").split(" ")
 
     if len(fields) > 0:
-        check_pkg = fields[0] # this could be one of <>=
+        check_pkg = fields[0]  # this could be one of <>=
 
         if check_pkg.endswith('*'):
             has_asterick = True
@@ -536,18 +572,17 @@ def parse_package_use(line, filename):
             if check_pkg[0] in atom_check:
                 check_pkg = check_pkg[1:]
 
-
         # if there is a wildcard, check to make sure at least one
         # of the packages is installed
-        #check_pkg = "=dev-qt/qtwebkit-4.8*"
+        # check_pkg = "=dev-qt/qtwebkit-4.8*"
 
         if check_pkg.find("/*") >= 0:
             query = Query(check_pkg)
             pkgs = []
             try:
-                pkgs = query.smart_find(True,True,True,True,False,True)
+                pkgs = query.smart_find(True, True, True, True, False, True)
             except errors.GentoolkitException as err:
-                print_output(debug,portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
+                print_output(debug, portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
                 return False
 
             if (pkgs != None):
@@ -557,101 +592,98 @@ def parse_package_use(line, filename):
             for current_package in pkgs:
                 # on wildcard scenario, return False if one package is installed
                 if current_package.is_installed():
-                    check_useflags(current_package,line)
+                    check_useflags(current_package, line)
                     no_installed_package_found = False
                     return False
             # handle if no packages found
-            if no_installed_package_found :
-                print (portage.output.red ("\nNo installed packages found for " + check_pkg + "."))
+            if no_installed_package_found:
+                print(portage.output.red("\nNo installed packages found for " + check_pkg + "."))
                 if "package.keywords" in filename:
-                    stable_list.append(check_pkg)                                                                                                        
+                    stable_list.append(check_pkg)
                 if "package.accept_keywords" in filename:
-                    stable_listNg.append(check_pkg)                                                                                                      
-                unmask_list.append(check_pkg)                                                                                                            
+                    stable_listNg.append(check_pkg)
+                unmask_list.append(check_pkg)
                 if "package.use" in filename:
-                    valid_flag_list = []                                                                                                                 
-                    valid_flag_list.insert(0,fields[0]);
-                    use_flag_dict[line] = valid_flag_list                                                                                                
-                    check_for_change = use_flag_dict[line]                                                                                               
+                    valid_flag_list = []
+                    valid_flag_list.insert(0, fields[0]);
+                    use_flag_dict[line] = valid_flag_list
+                    check_for_change = use_flag_dict[line]
                 return True
 
-
-
-
-        check_pkg = (check_pkg.rsplit(':',1))[0]
-        if ((orig_pkg_name.find("<=") >=0)
-            or (orig_pkg_name.find("<")>=0)
-            or (orig_pkg_name.find(">=") >=0)
-            or (orig_pkg_name.find(">") >=0)):
+        check_pkg = (check_pkg.rsplit(':', 1))[0]
+        if ((orig_pkg_name.find("<=") >= 0)
+                or (orig_pkg_name.find("<") >= 0)
+                or (orig_pkg_name.find(">=") >= 0)
+                or (orig_pkg_name.find(">") >= 0)):
 
             query = Query(check_pkg)
             pkgs = []
             try:
-                pkgs = query.smart_find(True,True,True,True,False,True)
+                pkgs = query.smart_find(True, True, True, True, False, True)
             except errors.GentoolkitException as err:
-                print_output(debug,portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
+                print_output(debug, portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
                 return False
 
             if (pkgs != None):
                 pkg_length = len(pkgs)
             for current_package in pkgs:
                 # on wildcard scenario, return False if one package is installed
-                if (orig_pkg_name.find("<=") >=0):
-                    if (pkgcmp(pkgsplit(check_pkg),pkgsplit(str(current_package.cpv))) == 1) or \
-                        (pkgcmp(pkgsplit(check_pkg),pkgsplit(str(current_package.cpv))) == 0):
+                if (orig_pkg_name.find("<=") >= 0):
+                    if (pkgcmp(pkgsplit(check_pkg), pkgsplit(str(current_package.cpv))) == 1) or \
+                            (pkgcmp(pkgsplit(check_pkg), pkgsplit(str(current_package.cpv))) == 0):
                         if current_package.is_installed():
-                            check_useflags(current_package,line)
+                            check_useflags(current_package, line)
                         return False
                 else:
-                    if (orig_pkg_name.find("<") >=0):
-                        if (pkgcmp(pkgsplit(check_pkg),pkgsplit(str(current_package.cpv))) == 1):
+                    if (orig_pkg_name.find("<") >= 0):
+                        if (pkgcmp(pkgsplit(check_pkg), pkgsplit(str(current_package.cpv))) == 1):
                             if current_package.is_installed():
-                                check_useflags(current_package,line)
+                                check_useflags(current_package, line)
                             return False
-                if (orig_pkg_name.find(">=") >=0):
+                if (orig_pkg_name.find(">=") >= 0):
                     while (check_pkg[0] in atom_check):
                         check_pkg = check_pkg[1:]
 
-                    result = pkgcmp(pkgsplit(check_pkg),pkgsplit(str(current_package.cpv)))
-                    if (pkgcmp(pkgsplit(check_pkg),pkgsplit(str(current_package.cpv))) == -1) or \
-                        (pkgcmp(pkgsplit(check_pkg),pkgsplit(str(current_package.cpv))) == 0):
+                    result = pkgcmp(pkgsplit(check_pkg), pkgsplit(str(current_package.cpv)))
+                    if (pkgcmp(pkgsplit(check_pkg), pkgsplit(str(current_package.cpv))) == -1) or \
+                            (pkgcmp(pkgsplit(check_pkg), pkgsplit(str(current_package.cpv))) == 0):
                         if current_package.is_installed():
-                            check_useflags(current_package,line)
+                            check_useflags(current_package, line)
                         return False
                 else:
-                    if (orig_pkg_name.find(">") >=0):
-                        if (pkgcmp(pkgsplit(check_pkg),pkgsplit(str(current_package.cpv))) == -1 ):
+                    if (orig_pkg_name.find(">") >= 0):
+                        if (pkgcmp(pkgsplit(check_pkg), pkgsplit(str(current_package.cpv))) == -1):
                             if current_package.is_installed():
-                                check_useflags(current_package,line)
+                                check_useflags(current_package, line)
                             return False
         else:
             # look for any version of check_pkg installed as there is
             # no version specified in package.use
-            print_output(debug,portage.output.blue("check_pkg is : " + check_pkg))
+            print_output(debug, portage.output.blue("check_pkg is : " + check_pkg))
             package_exists = portage.portdb.xmatch("match-all", check_pkg)
             if package_exists:
                 # get all package versions
                 query = Query(check_pkg)
                 pkgs = []
                 try:
-                    pkgs = query.smart_find(True,True,True,True,False,True)
+                    pkgs = query.smart_find(True, True, True, True, False, True)
                 except errors.GentoolkitException as err:
-                    print_output(debug,portage.output.blue("Package " + check_pkg + " not found."))
+                    print_output(debug, portage.output.blue("Package " + check_pkg + " not found."))
 
-                if (pkgs != None and len(pkgs)>0):
+                if (pkgs != None and len(pkgs) > 0):
                     pkg_length = len(pkgs)
 
                     # go through each package version for a specific
                     # version found above
                     # if one line check returns all ok, we don't need
-                    #to check the rest. One slot could have different
-                    #use flags than another
+                    # to check the rest. One slot could have different
+                    # use flags than another
                     if (has_atom == False):
                         check_useflags_all_versions(pkgs, line, check_pkg)
                         package_installed = check_for_any_installed_version(pkgs)
                         current_package = None
 
-                        #for current_package in pkgs:
+                        # for current_package in pkgs:
                         #    if current_package.is_installed():
                         #        check_useflags(current_package,line)
                         #        package_installed = True
@@ -663,7 +695,9 @@ def parse_package_use(line, filename):
                             if (not has_asterick and not atom_check):
                                 if (str(current_package.cpv) == check_pkg):
                                     if not current_package.is_installed():
-                                        print_output(info,portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red("Not Installed"),current_package)
+                                        print_output(info, portage.output.yellow(
+                                            "\n" + orig_pkg_name + ": ") + portage.output.red("Not Installed"),
+                                                     current_package)
                                         if "package.keywords" in filename:
                                             stable_list.append(check_pkg)
                                         if "package.accept_keywords" in filename:
@@ -671,22 +705,21 @@ def parse_package_use(line, filename):
                                         unmask_list.append(check_pkg)
                                         if "package.use" in filename:
                                             valid_flag_list = []
-                                            valid_flag_list.insert(0,current_package);
+                                            valid_flag_list.insert(0, current_package);
                                             use_flag_dict[line] = valid_flag_list
                                             check_for_change = use_flag_dict[line]
                                         return True
                                     else:
-                                        check_useflags(current_package,line)
+                                        check_useflags(current_package, line)
                                         return False
                             else:
                                 if current_package.is_installed():
-                                    check_useflags(current_package,line)
+                                    check_useflags(current_package, line)
                                     return False
 
-
                         # if we are here, we have a =<category>/package-PN* and none of them are installed
-                        print_output(info,portage.output.yellow("\n" + orig_pkg_name + ": ") +
-                            portage.output.red("Not Installed"),current_package)
+                        print_output(info, portage.output.yellow("\n" + orig_pkg_name + ": ") +
+                                     portage.output.red("Not Installed"), current_package)
                         if "package.keywords" in filename:
                             stable_list.append(check_pkg)
                         if "package.accept_keywords" in filename:
@@ -694,12 +727,13 @@ def parse_package_use(line, filename):
                         unmask_list.append(check_pkg)
                         if "package.use" in filename:
                             valid_flag_list = []
-                            valid_flag_list.insert(0,current_package);
+                            valid_flag_list.insert(0, current_package);
                             use_flag_dict[line] = valid_flag_list
                             check_for_change = use_flag_dict[line]
                         return True
             else:
-                print (portage.output.red ("\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
+                print(portage.output.red(
+                    "\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
                 if "package.keywords" in filename:
                     stable_list.append(check_pkg)
                 if "package.accept_keywords" in filename:
@@ -707,14 +741,14 @@ def parse_package_use(line, filename):
                 unmask_list.append(check_pkg)
                 if "package.use" in filename:
                     valid_flag_list = []
-                    #valid_flag_list.insert(0,current_package);
-                    valid_flag_list.insert(0,fields[0]);
+                    # valid_flag_list.insert(0,current_package);
+                    valid_flag_list.insert(0, fields[0]);
                     use_flag_dict[line] = valid_flag_list
                     check_for_change = use_flag_dict[line]
                 return True
 
     if (package_installed == False):
-        print_output(info,portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red(" Not Installed"))
+        print_output(info, portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red(" Not Installed"))
 
         if "package.keywords" in filename:
             stable_list.append(check_pkg)
@@ -722,7 +756,7 @@ def parse_package_use(line, filename):
             stable_listNg.append(check_pkg)
         if "package.use" in filename:
             valid_flag_list = []
-            valid_flag_list.insert(0,display_pkg_name);
+            valid_flag_list.insert(0, display_pkg_name);
             use_flag_dict[line] = valid_flag_list
             check_for_change = use_flag_dict[line]
 
@@ -732,20 +766,19 @@ def parse_package_use(line, filename):
     return False
 
 
-
-
 # skip the file if portpeek-skip found in a comment
 # you can put this in the middle of a file and it will
-#skip all entrie below it, this is useful to speed things
-#up by not checking ~kde versions, for example
-def skipFile (line, filename):
-    if ( (line == None) or (filename == None)):
+# skip all entrie below it, this is useful to speed things
+# up by not checking ~kde versions, for example
+def skipFile(line, filename):
+    if ((line == None) or (filename == None)):
         return False
 
     if line.find("portpeek-skip") >= 0:
         return True
 
     return False
+
 
 # parts blatantly stolen from equery
 # if pure is true, then get "true" mask status that is
@@ -781,9 +814,9 @@ def _get_mask_status(pkg, pure):
 
     return pkgmask
 
-def is_pkg_package_masked(cpv):
 
-    print_output(debug,portage.output.blue("is_pkg_package_masked called: " + cpv))
+def is_pkg_package_masked(cpv):
+    print_output(debug, portage.output.blue("is_pkg_package_masked called: " + cpv))
     mask_reason_list = get_mask_reason_list(cpv)
 
     if not mask_reason_list:
@@ -791,8 +824,9 @@ def is_pkg_package_masked(cpv):
 
     return False
 
+
 def get_mask_reason_list(cpv):
-    print_output(debug,portage.output.blue("get_mask_reason_list  called: " + cpv))
+    print_output(debug, portage.output.blue("get_mask_reason_list  called: " + cpv))
     mask_reason_list = []
 
     try:
@@ -801,16 +835,17 @@ def get_mask_reason_list(cpv):
     except:
         return []
 
+
 # filter out keywords for archs other than the current one
 def filter_keywords(keywords):
     filtered_keywords = ""
 
-    #for key in key_list:
+    # for key in key_list:
     for key in keywords:
         key = key.replace("[", '')
         key = key.replace("]", "")
         key = key.replace(",", "")
-        arch=settings["ARCH"]
+        arch = settings["ARCH"]
 
         # remove '~' from key for comparison
         key_comparison = key.lstrip('~')
@@ -823,53 +858,50 @@ def filter_keywords(keywords):
                 filtered_keywords = filtered_keywords + " "
             filtered_keywords = filtered_keywords + key
 
-
     return filtered_keywords
 
 
 # this function takes in a package with no cpv
 # and returns True if any version is masked
 def is_any_cpv_keyword_masked(package_name):
-    print_output(debug,portage.output.blue("inside is_any_cpv_keyword_masked: " + package_name))
+    print_output(debug, portage.output.blue("inside is_any_cpv_keyword_masked: " + package_name))
 
     query = Query(package_name, True)
 
     packages = []
     try:
-        packages = query.smart_find(True,True,True,True,False,True)
+        packages = query.smart_find(True, True, True, True, False, True)
     except errors.GentoolkitException as err:
-        print_output(debug,portage.output.blue("Package " + package_name + " not found."))
+        print_output(debug, portage.output.blue("Package " + package_name + " not found."))
 
     for package in packages:
         if is_pkg_package_masked(package.cpv):
-            print_output(debug,portage.output.blue("Package " + package.cpv + " is masked."))
+            print_output(debug, portage.output.blue("Package " + package.cpv + " is masked."))
             return True
 
-    print_output(debug,portage.output.blue("Package " + package_name + ". No masked versions."))
+    print_output(debug, portage.output.blue("Package " + package_name + ". No masked versions."))
     return False
+
 
 # we need to know if the package is masked
 # by being present in the package.mask file
 # as opposed to masked by keyword.
 # if it's not, then we can remove from package.unmask
 def is_any_cpv_file_masked(package_name):
-
-    print_output(debug,portage.output.blue("is_any_cpv_file_masked called: " + package_name))
+    print_output(debug, portage.output.blue("is_any_cpv_file_masked called: " + package_name))
 
     mask_reason_list = None
     mask_reason_list = get_mask_reason_list(cpv)
 
     try:
         for mask_reason_item in mask_reason_list:
-            print_output(debug,portage.output.blue("Mask Reason is " + mask_reason_item))
+            print_output(debug, portage.output.blue("Mask Reason is " + mask_reason_item))
             if (mask_reason_item == 'package.mask'):
                 return True
     except:
         return False
 
     return False
-
-
 
 
 # check to see if we have a stable release
@@ -881,32 +913,34 @@ def check_for_stable_release(pkg):
             return True
     return False
 
-#print version info
+
+# print version info
 def print_version():
     # Print the version of this tool to the console.
-    print (__productname__ + "(" + __version__ + ") - " + \
-        __description__)
-    print ("Author(s): " + __author__)
+    print(__productname__ + "(" + __version__ + ") - " + \
+          __description__)
+    print("Author(s): " + __author__)
+
 
 # function to go through a ~cp without a version
 # and set for removal from file if no masked package version exists
 def check_tilde_masked_pkg(package_name, filename):
-    ebuild_output=""
+    ebuild_output = ""
     variable_version = ""
 
     orig_package_name = package_name
-    package_name = package_name.replace('~','')
+    package_name = package_name.replace('~', '')
 
-    print_output(debug,portage.output.blue("check_tilde_maskd_pkg: orig_package-name is " + orig_package_name))
-    print_output(debug,portage.output.blue("check_tilde_maskd_pkg: package_name is " + package_name))
+    print_output(debug, portage.output.blue("check_tilde_maskd_pkg: orig_package-name is " + orig_package_name))
+    print_output(debug, portage.output.blue("check_tilde_maskd_pkg: package_name is " + package_name))
 
     query = Query(package_name, True)
 
     packages = []
     try:
-        packages = query.smart_find(True,True,True,True,False,True)
+        packages = query.smart_find(True, True, True, True, False, True)
     except errors.GentoolkitException as err:
-        print_output(debug,portage.output.blue("Package " + package_name + " not found."))
+        print_output(debug, portage.output.blue("Package " + package_name + " not found."))
 
     no_versions_installed = True
     for package in packages:
@@ -921,32 +955,34 @@ def check_tilde_masked_pkg(package_name, filename):
             stable_list.append(orig_package_name)
         if "package.accept_keywords" in filename:
             stable_listNg.append(orig_package_name)
-        print (ebuild_output + portage.output.brown(" : " + filename))
+        print(ebuild_output + portage.output.brown(" : " + filename))
 
         return
 
     # get all packages matching cat/package
     if (packages != None):
         for current_package in packages:
-            print_output(debug,portage.output.blue("check_tilde_maskd_pkg: current_package is " + str(current_package.cpv)))
-            print_output(debug,portage.output.blue("comparing " + package_name + " to " + str(current_package.cpv)))
-            if (pkgcmp(pkgsplit(package_name),pkgsplit(str(current_package.cpv))) <=0 ):
-            #if (pkgcmp(package_name, str(current_package.cpv)) <= 0):
+            print_output(debug,
+                         portage.output.blue("check_tilde_maskd_pkg: current_package is " + str(current_package.cpv)))
+            print_output(debug, portage.output.blue("comparing " + package_name + " to " + str(current_package.cpv)))
+            if (pkgcmp(pkgsplit(package_name), pkgsplit(str(current_package.cpv))) <= 0):
+                # if (pkgcmp(package_name, str(current_package.cpv)) <= 0):
                 packageObj = gentoolkit.package.Package(str(current_package.cpv))
                 if (packageObj == None):
                     # we could not create a package object
                     return
 
                 if "package.unmask" in filename:
-                    #if (is_pkg_package_masked(str(current_package.cpv))):
+                    # if (is_pkg_package_masked(str(current_package.cpv))):
                     if (is_any_cpv_file_masked(str(current_package.cpv))):
                         # package was found as masked
                         return
                     else:
                         # package is not masked
                         unmask_list.append(str(current_package.cpv))
-                        ebuild_output = portage.output.yellow(str(current_package.cpv) + ": ") + portage.output.green("Not package masked")
-                        print_output(info,ebuild_output, package, filename)
+                        ebuild_output = portage.output.yellow(str(current_package.cpv) + ": ") + portage.output.green(
+                            "Not package masked")
+                        print_output(info, ebuild_output, package, filename)
                         return
                 else:
                     if (is_pkg_package_masked(str(current_package.cpv))):
@@ -963,11 +999,11 @@ def check_tilde_masked_pkg(package_name, filename):
                 stable_list.append(orig_package_name)
             if "package.accept_keywords" in filename:
                 stable_listNg.append(orig_package_name)
-            print_output(info,ebuild_output, package, filename)
+            print_output(info, ebuild_output, package, filename)
 
-#helper function to print avail pks when version does not exist
+
+# helper function to print avail pks when version does not exist
 def show_all_versions(pkg, filename):
-
     # is package masked
     is_package_masked = False
     pkgArr = portage.pkgsplit(pkg)
@@ -984,7 +1020,7 @@ def show_all_versions(pkg, filename):
 
     # package is category/package and pkg is category/package-version
     # is category/package-version we are checking package masked?
-    #if portage.settings.pmaskdict.has_key(package):
+    # if portage.settings.pmaskdict.has_key(package):
     pmaskdict = settings._mask_manager._pmaskdict
     if package in pmaskdict:
         pkg_list = pmaskdict.get(package)
@@ -1000,9 +1036,9 @@ def show_all_versions(pkg, filename):
     all_pkgs = []
 
     try:
-        all_pkgs = query.smart_find(True,True,True,True,False,True)
+        all_pkgs = query.smart_find(True, True, True, True, False, True)
     except errors.GentoolkitException as err:
-        print_output(debug,portage.output.blue("Package " + package + " not found."))
+        print_output(debug, portage.output.blue("Package " + package + " not found."))
 
     for current_package in all_pkgs:
         keywords = "%s" % (current_package.environment("KEYWORDS").split())
@@ -1012,13 +1048,13 @@ def show_all_versions(pkg, filename):
         if ebuild:
             pkgmask = _get_mask_status(current_package, True)
             if is_package_masked:
-                print (portage.output.red("Available: " + str(current_package.cpv) + " [M] Keywords: " + keywords))
+                print(portage.output.red("Available: " + str(current_package.cpv) + " [M] Keywords: " + keywords))
             elif pkgmask > 4:
-                print (portage.output.red("Available: " + str(current_package.cpv) + " [M] Keywords: " + keywords))
+                print(portage.output.red("Available: " + str(current_package.cpv) + " [M] Keywords: " + keywords))
             elif pkgmask == 4 or pkgmask == 1:
-                print (portage.output.brown("Available: " + str(current_package.cpv) + " Keywords: " + keywords))
+                print(portage.output.brown("Available: " + str(current_package.cpv) + " Keywords: " + keywords))
             else:
-                print (portage.output.green("Available: " + str(current_package.cpv) + " Keywords: " + keywords))
+                print(portage.output.green("Available: " + str(current_package.cpv) + " Keywords: " + keywords))
                 if "package.keywords" in filename:
                     stable_list.append(str(current_package.cpv))
                 if "package.accept_keywords" in filename:
@@ -1029,14 +1065,14 @@ def get_useflags(package):
     iuse = get_iuse(package.cpv)
     return iuse
 
-def check_useflags_all_versions(pkgs, line, check_pkgs):
 
+def check_useflags_all_versions(pkgs, line, check_pkgs):
     global useremove_display, invalid_flag_found
     invalid_flag_found = False
-    has_use_expand_flags=False
+    has_use_expand_flags = False
     original_line = line
 
-    print_output(debug,portage.output.blue("ENTERED check_useflags_all_versions: " + check_pkgs))
+    print_output(debug, portage.output.blue("ENTERED check_useflags_all_versions: " + check_pkgs))
 
     # get all USE_EXPAND in array
     use_expand_list = settings.get('USE_EXPAND', '').split()
@@ -1044,9 +1080,9 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
 
     for use_expand in use_expand_list:
         index = line.find(use_expand)
-        if ( index != -1 ):
-            has_use_expand_flags=True
-            save_use_expand=line[index:]
+        if (index != -1):
+            has_use_expand_flags = True
+            save_use_expand = line[index:]
             line = line[:index]
             break;
 
@@ -1054,15 +1090,18 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
     valid_flag_list = []
     for package in pkgs:
 
+        # clear duplicate use flag dictionary
+        dup_dict.clear()
+
         # if package not installed, move on
         if (not package.is_installed()):
             continue;
 
-        print_output(debug,portage.output.blue("check_useflags_all_versions: package: " + package.cpv))
-        if ((package is None) or (package == "")):
+        print_output(debug, portage.output.blue("check_useflags_all_versions: package: " + package.cpv))
+        if (package is None) or (package == ""):
             return
 
-        useflag_removal_display=""
+        useflag_removal_display = ""
 
         if (len(line) <= 0):
             return
@@ -1070,7 +1109,7 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
         list2 = get_useflags(package)
 
         for uf in list2:
-            print_output(debug,portage.output.blue(("use found " + uf)))
+            print_output(debug, portage.output.blue(("use found " + uf)))
 
         iuse_string = package.use()
         iuse = iuse_string.split(" ")
@@ -1079,21 +1118,21 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
             iuse.append(uflag)
 
         for iuse_item in iuse:
-            print_output(debug,portage.output.blue(("iuse_item is " + iuse_item)))
+            print_output(debug, portage.output.blue(("iuse_item is " + iuse_item)))
 
         useflags_fromfile = line.replace("\t", " ").split(" ")
 
-        #for useflags_fromfile_item in useflags_fromfile:
-        #    print_output(debug,portage.output.blue(("useflags_fromfile_item is " + useflags_fromfile_item)))
+        for useflags_fromfile_item in useflags_fromfile:
+            print_output(debug, portage.output.blue(("useflags_fromfile_item is " + useflags_fromfile_item)))
 
         package_string = useflags_fromfile.pop(0)
-        print_output(debug,portage.output.blue(("package_string is " + package_string)))
+        print_output(debug, portage.output.blue(("package_string is " + package_string)))
 
         clean_useflags_list = []
         # remove + or -
         atom = "-+"
 
-        #clean list from portage of + or -
+        # clean list from portage of + or -
         clean_iuse = []
         for item in iuse:
             if item[0] in atom:
@@ -1104,11 +1143,12 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
         for original_flag in useflags_fromfile:
             if (original_flag is None or original_flag == ""):
                 continue
+
             flag = original_flag
             if original_flag[0] in atom:
                 flag = original_flag[1:]
             if flag not in clean_iuse:
-                print_output(debug,portage.output.blue(("found invalid flag: " + flag)))
+                print_output(debug, portage.output.blue(("found invalid flag: " + flag)))
 
                 # only add to invalid list if it's not in valid list
                 try:
@@ -1116,13 +1156,14 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
                 except ValueError as error:
 
                     try:
-                       index = potential_invalid_flag.index(original_flag)
+                        index = potential_invalid_flag.index(original_flag)
                     except ValueError:
-                       print_output(debug,portage.output.blue(original_flag + " not found for " + package.cpv))
-                       potential_invalid_flag.append(original_flag)
+                        print_output(debug, portage.output.blue(original_flag + " not found for " + package.cpv))
+                        potential_invalid_flag.append(original_flag)
 
             else:
-                print_output(debug,portage.output.blue(("found valid flag: " + flag)))
+                print_output(debug, portage.output.blue(("found valid flag: " + flag)))
+                check_for_dup_useflag_in_make_conf(package.cpv, original_flag)
                 try:
                     index = valid_flag_list.index(original_flag)
                 except ValueError as error:
@@ -1134,6 +1175,9 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
                 except ValueError as error:
                     continue
 
+        if (len(dup_dict) > 0):
+            print(portage.output.yellow(
+                "Notice: Duplicate use flag(s) found for package " + package.cpv + ": " + str(dup_dict[package.cpv])))
 
     # if potential_invalid_flag list is empty, we are done
     if (len(potential_invalid_flag) <= 0):
@@ -1151,8 +1195,10 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
         invalid_flags += inv_flag
 
     # if there are no valid flags at all, we remove the line
-    if ( (len(valid_flag_list) == 0) and (has_use_expand_flags == False)):
-        print_output (info,portage.output.red("No valid use flags found for package: " + str(package.category) + "/" + str(package.name) + ". Invalid flag(s) found: " + invalid_flags +  "\n"))
+    if ((len(valid_flag_list) == 0) and (has_use_expand_flags == False)):
+        print_output(info, portage.output.red(
+            "No valid use flags found for package: " + str(package.category) + "/" + str(
+                package.name) + ". Invalid flag(s) found: " + invalid_flags + "\n"))
         useremove_display += "Removing line: " + original_line + "\n"
         use_flag_dict[original_line] = ""
         return
@@ -1164,11 +1210,12 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
     else:
         removal_text = "use flag: "
 
-    if ( ((len(valid_flag_list) > 0)) or (has_use_expand_flags == True)):
+    if (((len(valid_flag_list) > 0)) or (has_use_expand_flags == True)):
         useremove_display += "Removing " + removal_text + invalid_flags + " for package " + check_pkgs + "\n"
-        print (portage.output.yellow(removal_text) +  portage.output.red(invalid_flags) + portage.output.yellow(" " + verb + " invalid for " + str(package.cpv)))
+        print(portage.output.yellow(removal_text) + portage.output.red(invalid_flags) + portage.output.yellow(
+            " " + verb + " invalid for " + str(package.cpv)))
 
-    valid_flag_list.insert(0,package_string);
+    valid_flag_list.insert(0, package_string);
 
     if (has_use_expand_flags == True):
         valid_flag_list.append(save_use_expand)
@@ -1178,37 +1225,37 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
 
     return valid_flag_list
 
-def check_useflags(package,line):
 
+def check_useflags(package, line):
     global useremove_display, invalid_flag_found
     invalid_flag_found = False
 
-    print_output(debug,portage.output.blue("check_useflags: package: " + package.cpv))
+    print_output(debug, portage.output.blue("check_useflags: package: " + package.cpv))
     if ((package is None) or (package == "")):
         return
 
-    useflag_removal_display=""
+    useflag_removal_display = ""
 
     if (len(line) <= 0):
         return
 
     iuse = get_useflags(package)
 
-    #for iuse_item in iuse:
+    # for iuse_item in iuse:
     #    print_output(debug,portage.output.blue(("iuse_item is " + iuse_item)))
 
     useflags_fromfile = line.replace("\t", " ").split(" ")
-    #for useflags_fromfile_item in useflags_fromfile:
+    # for useflags_fromfile_item in useflags_fromfile:
     #    print_output(debug,portage.output.blue(("useflags_fromfile_item is " + useflags_fromfile_item)))
 
     package_string = useflags_fromfile.pop(0)
-    print_output(debug,portage.output.blue(("package_string is " + package_string)))
+    print_output(debug, portage.output.blue(("package_string is " + package_string)))
 
     clean_useflags_list = []
     # remove + or -
     atom = "-+"
 
-    #clean list from portage of + or -
+    # clean list from portage of + or -
     clean_iuse = []
     for item in iuse:
         if item[0] in atom:
@@ -1224,32 +1271,45 @@ def check_useflags(package,line):
         if original_flag[0] in atom:
             flag = original_flag[1:]
         if flag not in clean_iuse:
-            print_output (info,portage.output.red("use flag: " + flag + " is invalid for : " + str(package.cpv)))
+            print_output(info, portage.output.red("use flag: " + flag + " is invalid for : " + str(package.cpv)))
             useflag_removal_display += "Removing use flag: " + flag + " for package " + str(package.cpv)
             invalid_flag_found = True
         else:
             valid_flag_list.append(original_flag)
 
     # if valid_flag_list is empty, there are no valid flags
-    if ( (len(valid_flag_list) > 0) and (len(useflag_removal_display) >0)):
+    if ((len(valid_flag_list) > 0) and (len(useflag_removal_display) > 0)):
         useremove_display += useflag_removal_display + "\n"
-    elif ( len(valid_flag_list) == 0):
-        useremove_display += "No valid use flags found for package " + str(package.cpv) + ". Removing line: " + line + "\n"
-        if ( invalid_flag_found != True):
-            print_output (info,portage.output.red("No valid use flags found for package " + str(package.cpv)))
+    elif (len(valid_flag_list) == 0):
+        useremove_display += "No valid use flags found for package " + str(
+            package.cpv) + ". Removing line: " + line + "\n"
+        if not invalid_flag_found:
+            print_output(info, portage.output.red("No valid use flags found for package " + str(package.cpv)))
         invalid_flag_found = True
 
-    valid_flag_list.insert(0,package_string);
-    if (invalid_flag_found == True):
+    valid_flag_list.insert(0, package_string);
+    if invalid_flag_found:
         use_flag_dict[line] = valid_flag_list
 
     return valid_flag_list
 
 
-def clean_useflagsFile(filename):
+def check_for_dup_useflag_in_make_conf(package, flag):
+    if not check_for_dup_use_flags:
+        return
+    my_use = (str(portage.settings.configdict["conf"]["USE"])).split(" ")
+    for i in my_use:
+        print_output(debug, portage.output.blue("found flag: " + i + " and flag is " + flag))
+        if i == flag:
+            if package in dup_dict:
+                dup_dict[package] = dup_dict[package] + ", " + flag
+            else:
+                dup_dict[package] = flag
 
+
+def clean_useflagsFile(filename):
     if "--fix-confirm" in cmdline:
-        if (confirmFix() == False):
+        if not confirmFix():
             return
 
     display_line = ""
@@ -1261,11 +1321,11 @@ def clean_useflagsFile(filename):
             # get listing of directory
             filenames = os.listdir(filename)
             for file_name in filenames:
-                clean_useflagsFile(filename+os.path.sep+file_name)
+                clean_useflagsFile(filename + os.path.sep + file_name)
             return
         else:
-            #go through stable array and remove line if found
-            for line in fileinput.input(filename,inplace =1):
+            # go through stable array and remove line if found
+            for line in fileinput.input(filename, inplace=1):
                 itemFound = False
                 line = line.strip()
 
@@ -1274,40 +1334,42 @@ def clean_useflagsFile(filename):
                     print("")
                     continue
                 elif line.find("#") == 0:
-                    print (line)
+                    print(line)
                     continue
 
                 check_for_change = ""
-                use_flag_dict.get(line,"")
+                use_flag_dict.get(line, "")
                 try:
                     check_for_change = use_flag_dict[line]
                     removed_list.append(line)
-                    if ( len(check_for_change) > 1):
-                        print (" ".join(check_for_change))
+                    if (len(check_for_change) > 1):
+                        print(" ".join(check_for_change))
                 except KeyError as error:
-                    print (line)
+                    print(line)
 
             fileinput.close()
     except OSError as error:
-        print (portage.output.red("Modify/Read access to file: " + filename + " failed: " + format(error)))
+        print(portage.output.red("Modify/Read access to file: " + filename + " failed: " + format(error)))
 
     if (len(removed_list) > 0):
-        print ("\n")
+        print("\n")
         for package in removed_list:
-            print (portage.output.red("Removing from: ") + portage.output.yellow(filename + ": Invalid use flag(s) from ")  + portage.output.green(package) + "\n")
+            print(portage.output.red("Removing from: ") + portage.output.yellow(
+                filename + ": Invalid use flag(s) from ") + portage.output.green(package) + "\n")
 
     return
 
+
 def handle_if_overlay(package):
     overlay_text = ""
-    global print_overlay_flag,using_gentoo_as_overlay
+    global print_overlay_flag, using_gentoo_as_overlay
 
     if (using_gentoo_as_overlay):
         return overlay_text
 
     print_overlay_flag = True
 
-    ebuild_path,overlay_path = porttree.dbapi.findname2(str(package.cpv))
+    ebuild_path, overlay_path = porttree.dbapi.findname2(str(package.cpv))
     index = -1
     try:
         index = overlay_list.index(overlay_path)
@@ -1315,15 +1377,15 @@ def handle_if_overlay(package):
         overlay_list.append(overlay_path)
         index = overlay_list.index(overlay_path)
 
-    overlay_text = " [%s]" % (str(index+1))
+    overlay_text = " [%s]" % (str(index + 1))
 
     return overlay_text
+
 
 # if the overlay_text was displayed to the user
 # we need to display the string at the end
 # this array will store the overlays to be displayed
 def print_overlay_text():
-
     global print_overlay_flag
 
     if (not print_overlay_flag):
@@ -1334,33 +1396,33 @@ def print_overlay_text():
 
     index = 1
     for x in overlay_list:
-        print (portage.output.turquoise("[" + str(index) + "] ") + x)
+        print(portage.output.turquoise("[" + str(index) + "] ") + x)
         index = index + 1
 
-    print ("\n")
+    print("\n")
 
-#helper function to print output
-def print_output(log_level,output_string, package=None, filename=None):
 
+# helper function to print output
+def print_output(log_level, output_string, package=None, filename=None):
     global logLevel
 
     if package != None:
         if (package.is_overlay()):
-            output_string = "%s%s" % (output_string,portage.output.turquoise(handle_if_overlay(package)))
-            #output_string = output_string + portage.output.turquoise(handle_if_overlay(package))
+            output_string = "%s%s" % (output_string, portage.output.turquoise(handle_if_overlay(package)))
+            # output_string = output_string + portage.output.turquoise(handle_if_overlay(package))
     else:
         if filename != None:
-            output_string = "%s%s" % (output_string,portage.output.brown(" : " + filename))
-             #output_string = output_string + portage.output.brown(" : " + filename)
+            output_string = "%s%s" % (output_string, portage.output.brown(" : " + filename))
+            # output_string = output_string + portage.output.brown(" : " + filename)
 
     if (log_level <= logLevel):
-        print (output_string)
+        print(output_string)
+
 
 # remove stabled files that are no longer needed from package.keywords
 # or package.mask
 # includes support for etc/portage/package.keywords/<whatever>/package.keywords
-def cleanFile (filename):
-
+def cleanFile(filename):
     removeDups = []
     removed_list = []
 
@@ -1374,19 +1436,19 @@ def cleanFile (filename):
         return
 
     if "package.keywords" in filename:
-        if ( len(stable_list) == 0):
+        if (len(stable_list) == 0):
             return
         removeDups = stable_list
     elif "package.env" in filename:
-        if ( len(env_list) == 0):
+        if (len(env_list) == 0):
             return
         removeDups = env_list
     elif "package.accept_keywords" in filename:
-        if ( len(stable_listNg) == 0):
+        if (len(stable_listNg) == 0):
             return
         removeDups = stable_listNg
     else:
-        if ( len(unmask_list) == 0):
+        if (len(unmask_list) == 0):
             return
         removeDups = unmask_list
 
@@ -1398,11 +1460,11 @@ def cleanFile (filename):
             # get listing of directory
             filenames = os.listdir(filename)
             for file_name in filenames:
-                cleanFile(filename+os.path.sep+file_name)
+                cleanFile(filename + os.path.sep + file_name)
             return
         else:
-            #go through stable array and remove line if found
-            for line in fileinput.input(filename,inplace =1):
+            # go through stable array and remove line if found
+            for line in fileinput.input(filename, inplace=1):
                 itemFound = False
                 line = line.strip()
 
@@ -1411,7 +1473,7 @@ def cleanFile (filename):
                     print("")
                     continue
                 elif line.find("#") == 0:
-                    print (line)
+                    print(line)
                     continue
 
                 for item in removeDups:
@@ -1422,42 +1484,44 @@ def cleanFile (filename):
                         removeDups.pop(removeDups.index(item))
                         break
                 if (itemFound == False):
-                    print (line)
+                    print(line)
             fileinput.close()
     except OSError as error:
-        print (portage.output.red("Modify/Read access to file: " + filename + " failed: " + format(error)))
+        print(portage.output.red("Modify/Read access to file: " + filename + " failed: " + format(error)))
 
     if (len(removed_list) > 0):
-        print ("\n")
+        print("\n")
         for package in removed_list:
-            print (portage.output.red("Removing from: ") + portage.output.yellow(filename) + ": " + portage.output.green(package) + "\n")
+            print(portage.output.red("Removing from: ") + portage.output.yellow(filename) + ": " + portage.output.green(
+                package) + "\n")
+
 
 # ask the user if they want to fix their files
 # and remove unneeded entries
 # Return true if they say yes and False if they say no
 def confirmFix():
-
-    global fix_asked,fix_confirm
+    global fix_asked, fix_confirm
 
     if (fix_asked == True):
         return fix_confirm
 
     # only ask if we actually have anything to check
-    if ( (len(stable_list) == 0) and
-          (len(stable_listNg) == 0) and
-          (len(unmask_list) == 0) and
-          (len(env_list) == 0) and
-          (invalid_flag_found == False) and
-          (len(use_flag_dict) == 0)):
+    if ((len(stable_list) == 0) and
+            (len(stable_listNg) == 0) and
+            (len(unmask_list) == 0) and
+            (len(env_list) == 0) and
+            (invalid_flag_found == False) and
+            (len(use_flag_dict) == 0)):
         fix_confirm = True
         return fix_confirm
 
     fix_asked = True
 
-    valid = {"yes":"yes",   "y":"yes",
-             "no":"no",     "n":"no"}
+    valid = {"yes": "yes", "y": "yes",
+             "no": "no", "n": "no"}
 
-    prompt = portage.output.bold("Remove entries from files [") + portage.output.green("y") + "/" + portage.output.red("n") + portage.output.bold("]") + " "
+    prompt = portage.output.bold("Remove entries from files [") + portage.output.green("y") + "/" + portage.output.red(
+        "n") + portage.output.bold("]") + " "
 
     while 1:
         sys.stdout.write('\n' + prompt)
@@ -1473,19 +1537,19 @@ def confirmFix():
                 fix_confirm = False
                 break
         else:
-            sys.stdout.write("Please respond with 'yes' or 'no' "\
+            sys.stdout.write("Please respond with 'yes' or 'no' " \
                              "(or 'y' or 'n').\n")
 
     return fix_confirm
 
 
 def check_for_any_installed_version(pkgs):
-
     for package in pkgs:
         if (package.is_installed()):
             return True
 
     return False
+
 
 # main
 if __name__ == "__main__":
@@ -1502,29 +1566,33 @@ if __name__ == "__main__":
             for cmd_item in cmd[1:]:
                 if cmd_item in mappings:
                     if mappings[cmd_item] in cmdline:
-                        print ()
-                        print ("*** Warning: Redundant use of ", mappings[cmd_item])
+                        print()
+                        print("*** Warning: Redundant use of ", mappings[cmd_item])
                     else:
                         cmdline.append(mappings[cmd_item])
                 else:
-                    print ("!!! Error: -"+cmd_item+" is an invalid option.")
+                    print("!!! Error: -" + cmd_item + " is an invalid option.")
                     sys.exit(-1)
         else:
             cmdline.append(cmd)
 
-    #parse long options
+    # parse long options
     for cmd in cmdline:
-        if len(cmd)>=2 and cmd[0:2]=="--":
+        if len(cmd) >= 2 and cmd[0:2] == "--":
             try:
                 i = options.index(cmd)
                 continue
             except ValueError:
-                print ("!!! Error: -"+cmd+" is an invalid option.")
+                print("!!! Error: -" + cmd + " is an invalid option.")
                 sys.exit(-1)
 
     if "--changes-only" in cmdline:
         cmdline.remove("--changes-only")
         show_changes_only_flag = True
+
+    if "--make-conf-use" in cmdline:
+        cmdline.remove("--make-conf-use")
+        check_for_dup_use_flags = True
 
     if "--removable-only" in cmdline:
         cmdline.remove("--removable-only")
@@ -1537,7 +1605,7 @@ if __name__ == "__main__":
         portage.output.nocolor()
 
     if "--tilde-check" in cmdline:
-        tilde=1
+        tilde = 1
 
     if "--version" in cmdline:
         print_version()
@@ -1554,31 +1622,31 @@ if __name__ == "__main__":
             if "--fix-confirm" in cmdline:
                 tmpcmdline.append("--fix-confirm")
                 fix_confirm = False
-        cmdline=tmpcmdline
+        cmdline = tmpcmdline
 
     if "--help" in cmdline:
         print_usage()
         sys.exit(0)
 
     if (show_changes_only_flag and show_removable_only_flag):
-        print ("Please select only one of --show-removable (-r) or --changes-only")
-        print ("Use --help for more info.")
+        print("Please select only one of --show-removable (-r) or --changes-only")
+        print("Use --help for more info.")
         sys.exit(0)
 
     for cmd in cmdline:
         if cmd == "--keyword":
-            print (portage.output.bold("\npackage.keywords:"))
+            print(portage.output.bold("\npackage.keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.keywords")
             if "--fix" in cmdline:
                 cleanFile(USER_CONFIG_PATH + "/package.keywords")
-            print (portage.output.bold("Done\n"))
-            print (portage.output.bold("\npackage.accept_keywords:"))
+            print(portage.output.bold("Done\n"))
+            print(portage.output.bold("\npackage.accept_keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.accept_keywords")
             if "--fix" in cmdline:
                 cleanFile(USER_CONFIG_PATH + "/package.accept_keywords")
-            print (portage.output.bold("Done\n"))
+            print(portage.output.bold("Done\n"))
         elif cmd == "--unmask":
-            print (portage.output.bold("\npackage.unmask:"))
+            print(portage.output.bold("\npackage.unmask:"))
             checking_package_unmask = True
             get_recursive_info(USER_CONFIG_PATH + "/package.unmask")
             checking_package_unmask = False
@@ -1586,44 +1654,45 @@ if __name__ == "__main__":
                 cleanFile(USER_CONFIG_PATH + "/package.unmask")
         elif cmd == "--mask":
             checking_package_mask = True
-            print (portage.output.bold("\npackage.mask:"))
+            print(portage.output.bold("\npackage.mask:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.mask")
-            print (portage.output.bold("Done\n"))
+            print(portage.output.bold("Done\n"))
             checking_package_mask = False
             if "--fix" in cmdline:
                 cleanFile(USER_CONFIG_PATH + "/package.mask")
         elif cmd == "--package-use":
-            print (portage.output.bold("\npackage.use:"))
+            print(portage.output.bold("\npackage.use:"))
             processing_package_use = True
             get_recursive_info(USER_CONFIG_PATH + "/package.use")
             if "--fix" in cmdline:
                 cleanFile(USER_CONFIG_PATH + "/package.use")
                 clean_useflagsFile(USER_CONFIG_PATH + "/package.use")
-            print (portage.output.bold("Done\n"))
+            print(portage.output.bold("Done\n"))
         elif cmd == "--package-env":
-            print (portage.output.bold("\npackage.env:"))
+            print(portage.output.bold("\npackage.env:"))
             checking_env_file = True
             get_recursive_info(USER_CONFIG_PATH + "/package.env")
             if "--fix" in cmdline:
                 cleanFile(USER_CONFIG_PATH + "/package.env")
-            print (portage.output.bold("Done\n"))
+            print(portage.output.bold("Done\n"))
         elif cmd == "--all":
-            print (portage.output.bold("\npackage.keywords:"))
+            print(portage.output.bold("\npackage.keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.keywords")
-            print (portage.output.bold("\npackage.accept_keywords:"))
+            print(portage.output.bold("\npackage.accept_keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.accept_keywords")
-            print (portage.output.bold("\npackage.unmask:"))
+            print(portage.output.bold("\npackage.unmask:"))
             checking_package_unmask = True
             get_recursive_info(USER_CONFIG_PATH + "/package.unmask")
             checking_package_unmask = False
             checking_package_mask = True
-            print (portage.output.bold("\npackage.mask:"))
+            print(portage.output.bold("\npackage.mask:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.mask")
-            print (portage.output.bold("\npackage.use:"))
+            print(portage.output.bold("\npackage.use:"))
             processing_package_use = True
             get_recursive_info(USER_CONFIG_PATH + "/package.use")
-            print (portage.output.bold("\npackage.env:"))
+            print(portage.output.bold("\npackage.env:"))
             processing_package_use = False
+            check_for_dup_use_flags = False
             checking_env_file = True
             get_recursive_info(USER_CONFIG_PATH + "/package.env")
             if "--fix" in cmdline:
@@ -1634,20 +1703,22 @@ if __name__ == "__main__":
                 cleanFile(USER_CONFIG_PATH + "/package.mask")
                 cleanFile(USER_CONFIG_PATH + "/package.env")
                 clean_useflagsFile(USER_CONFIG_PATH + "/package.use")
-            print (portage.output.bold("\nDone\n"))
+            print(portage.output.bold("\nDone\n"))
 
     print_overlay_text()
 
     if len(cmdline) == 0:
         if show_changes_only_flag or show_removable_only_flag:
             if (show_changes_only_flag):
-                print (portage.output.green("-c") + " or " + portage.output.green("--changes-only") + " must be accompanied by one of the following:")
+                print(portage.output.green("-c") + " or " + portage.output.green(
+                    "--changes-only") + " must be accompanied by one of the following:")
             else:
-                print (portage.output.green("-r") + " or " + portage.output.green("--removable-only") + " must be accompanied by one of the following:")
+                print(portage.output.green("-r") + " or " + portage.output.green(
+                    "--removable-only") + " must be accompanied by one of the following:")
 
-            print ("     " + portage.output.yellow("-k") + " or " + portage.output.yellow("--keyword"))
-            print ("     " + portage.output.yellow("-u") + " or " + portage.output.yellow("--unmask"))
-            print ("     " + portage.output.yellow("-m") + " or " + portage.output.yellow("--mask"))
-            print ("     " + portage.output.yellow("-a") + " or " + portage.output.yellow("--all"))
+            print("     " + portage.output.yellow("-k") + " or " + portage.output.yellow("--keyword"))
+            print("     " + portage.output.yellow("-u") + " or " + portage.output.yellow("--unmask"))
+            print("     " + portage.output.yellow("-m") + " or " + portage.output.yellow("--mask"))
+            print("     " + portage.output.yellow("-a") + " or " + portage.output.yellow("--all"))
 
             print_usage()
