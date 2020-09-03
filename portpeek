@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "3.1.4"
+__version__ = "3.1.5"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -512,6 +512,9 @@ def get_info(filename):
                 line = line.strip()
                 if len(line) <= 0:
                     continue
+            # ignore */* 
+            if (line.find("*/*")>=0):
+                return
             # ignore use expands
             for python_use_expand_flag in python_use_expand:
                 if line.find(python_use_expand_flag) >= 0:
