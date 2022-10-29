@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "3.1.5"
+__version__ = "3.2.2"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -215,7 +215,7 @@ def parse_line(line, filename):
     diffs_found = False
     display_done = False
 
-    fields = line.replace("\t", " ").split(" ")
+    fields = line.replace("\t", " ").split( )
 
     # package.env handling
     if (checking_env_file == True):
@@ -272,6 +272,7 @@ def parse_line(line, filename):
         if package_exists:
             # return a Package List based on the cpv
             query = Query(check_pkg)
+            query.query_type="simple"
             # query = Query(fields[0])
             pkgs = []
 
@@ -581,6 +582,7 @@ def parse_package_use(line, filename):
 
         if check_pkg.find("/*") >= 0:
             query = Query(check_pkg)
+            query.query_type="simple"
             pkgs = []
             try:
                 pkgs = query.smart_find(True, True, True, True, False, True)
@@ -620,6 +622,7 @@ def parse_package_use(line, filename):
                 or (orig_pkg_name.find(">") >= 0)):
 
             query = Query(check_pkg)
+            query.query_type="simple"
             pkgs = []
             try:
                 pkgs = query.smart_find(True, True, True, True, False, True)
@@ -667,6 +670,7 @@ def parse_package_use(line, filename):
             if package_exists:
                 # get all package versions
                 query = Query(check_pkg)
+                query.query_type="simple"
                 pkgs = []
                 try:
                     pkgs = query.smart_find(True, True, True, True, False, True)
@@ -869,6 +873,7 @@ def is_any_cpv_keyword_masked(package_name):
     print_output(debug, portage.output.blue("inside is_any_cpv_keyword_masked: " + package_name))
 
     query = Query(package_name, True)
+    query.query_type="simple"
 
     packages = []
     try:
@@ -937,6 +942,7 @@ def check_tilde_masked_pkg(package_name, filename):
     print_output(debug, portage.output.blue("check_tilde_maskd_pkg: package_name is " + package_name))
 
     query = Query(package_name, True)
+    query.query_type="simple"
 
     packages = []
     try:
@@ -1034,6 +1040,7 @@ def show_all_versions(pkg, filename):
                     is_package_masked = True
 
     query = Query(package)
+    query.query_type="simple"
 
     all_pkgs = []
 
@@ -1143,7 +1150,7 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
                 clean_iuse.append(item)
 
         for original_flag in useflags_fromfile:
-            if (original_flag is None or original_flag == ""):
+            if (original_flag is None or original_flag == "" or original_flag == "-*"):
                 continue
 
             flag = original_flag
