@@ -616,6 +616,12 @@ def parse_package_use(line, filename):
                     check_for_change = use_flag_dict[line]
                 return True
 
+        repo = None
+        if "::" in check_pkg:
+            m = re.search("::[a-zA-Z0-9_-]+", check_pkg)
+            repo = m.group()
+            check_pkg = check_pkg.replace(repo, "")
+
         check_pkg = (check_pkg.rsplit(':', 1))[0]
         if ((orig_pkg_name.find("<=") >= 0)
                 or (orig_pkg_name.find("<") >= 0)
