@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Copyright 2006-2022 Mike Pagano
+# Copyright 2006-2025 Mike Pagano
 # Distributed under the terms of the GNU General Public License v2
 #
 # $Header$
@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "3.2.4"
+__version__ = "3.2.5"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -1087,6 +1087,7 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
     invalid_flag_found = False
     has_use_expand_flags = False
     original_line = line
+    save_use_expand = []
 
     print_output(debug, portage.output.blue("ENTERED check_useflags_all_versions: " + check_pkgs))
 
@@ -1100,7 +1101,6 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
             has_use_expand_flags = True
             save_use_expand = line[index:]
             line = line[:index]
-            break;
 
     potential_invalid_flag = []
     valid_flag_list = []
@@ -1245,6 +1245,7 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
 def check_useflags(package, line):
     global useremove_display, invalid_flag_found
     invalid_flag_found = False
+    save_use_expand = []
 
     print_output(debug, portage.output.blue("check_useflags: package: " + package.cpv))
     if ((package is None) or (package == "")):
@@ -1255,6 +1256,22 @@ def check_useflags(package, line):
     if (len(line) <= 0):
         return
 
+    # get all USE_EXPAND in array
+    use_expand_list = settings.get('USE_EXPAND', '').split()
+    use_expand_list.sort()
+
+    print("line is  " + line)
+    for use_expand in use_expand_list:
+        print("use_expand is " + use_expand)
+        index = line.find(use_expand)
+        if (index != -1):
+            print("HERE")
+            has_use_expand_flags = True
+            #save_use_expand = line[index:]
+            save_use_expand.append(line[index:])
+            line = line[:index]
+
+    print ("save_use_expand is " + str(save_use_expand))
     iuse = get_useflags(package)
 
     # for iuse_item in iuse:
