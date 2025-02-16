@@ -1260,18 +1260,14 @@ def check_useflags(package, line):
     use_expand_list = settings.get('USE_EXPAND', '').split()
     use_expand_list.sort()
 
-    print("line is  " + line)
     for use_expand in use_expand_list:
-        print("use_expand is " + use_expand)
         index = line.find(use_expand)
         if (index != -1):
-            print("HERE")
             has_use_expand_flags = True
             #save_use_expand = line[index:]
             save_use_expand.append(line[index:])
             line = line[:index]
 
-    print ("save_use_expand is " + str(save_use_expand))
     iuse = get_useflags(package)
 
     # for iuse_item in iuse:
