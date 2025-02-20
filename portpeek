@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "3.2.6"
+__version__ = "3.2.7"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -1088,6 +1088,7 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
     has_use_expand_flags = False
     original_line = line
     save_use_expand = []
+    installed_package = Package('')
 
     print_output(debug, portage.output.blue("ENTERED check_useflags_all_versions: " + check_pkgs))
 
@@ -1112,6 +1113,8 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
         # if package not installed, move on
         if (not package.is_installed()):
             continue;
+
+        installed_package = package
 
         print_output(debug, portage.output.blue("check_useflags_all_versions: package: " + package.cpv))
         if (package is None) or (package == ""):
@@ -1156,14 +1159,27 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
             else:
                 clean_iuse.append(item)
 
+        # join elements to use for checking wildcard useflags
+        # e.g. media-video/ffmpeg  -fftools_* 
+        clean_iuse_joined = '\t'.join(clean_iuse)
+
         for original_flag in useflags_fromfile:
             if (original_flag is None or original_flag == "" or original_flag == "-*"):
                 continue
 
+            save_atom = ""
+
             flag = original_flag
             if original_flag[0] in atom:
+                save_atom = original_flag[0]
                 flag = original_flag[1:]
             if flag not in clean_iuse:
+                if ('*' in flag):
+                    flag = flag[:-1]
+                    if (flag in clean_iuse_joined):
+                        valid_flag_list.append(save_atom + flag + "*")
+                        continue
+
                 print_output(debug, portage.output.blue(("found invalid flag: " + flag)))
 
                 # only add to invalid list if it's not in valid list
@@ -1229,7 +1245,7 @@ def check_useflags_all_versions(pkgs, line, check_pkgs):
     if (((len(valid_flag_list) > 0)) or (has_use_expand_flags == True)):
         useremove_display += "Removing " + removal_text + invalid_flags + " for package " + check_pkgs + "\n"
         print(portage.output.yellow(removal_text) + portage.output.red(invalid_flags) + portage.output.yellow(
-            " " + verb + " invalid for " + str(package.cpv)))
+            " " + verb + " invalid for " + str(installed_package.cpv)))
 
     valid_flag_list.insert(0, package_string);
 
