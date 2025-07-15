@@ -12,7 +12,6 @@
 # - portage.py
 # - emerge
 #
-#
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
@@ -137,7 +136,7 @@ def print_usage():
     print(portage.output.yellow(" command ") + " can be ")
     print(portage.output.yellow(" -a, --all") + "           - show all matches")
     print(portage.output.yellow(
-        " -k, --keyword") + "       - show matches from package.keywords and package.accept_keywords only")
+        " -k, --keyword") + "       - show matches from package.accept_keywords only")
     print(portage.output.yellow(" -m, --mask") + "          - show matches from package.mask only")
     print(portage.output.yellow(" -u, --unmask") + "        - show matched from package.unmask only")
     print(portage.output.yellow(" -s, --package.use") + "   - show matches from package.use only")
@@ -305,8 +304,6 @@ def parse_line(line, filename):
                                 print_output(info,
                                              portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red(
                                                  "Not Installed"), current_package, filename)
-                                if "package.keywords" in filename:
-                                    stable_list.append(str(current_package.cpv))
                                 if "package.accept_keywords" in filename:
                                     stable_listNg.append(str(current_package.cpv))
                                 if "package.env" in filename:
@@ -343,8 +340,6 @@ def parse_line(line, filename):
                                             portage.output.green("  Keywords " + keywords)
                             if "package.unmask" in filename:
                                 unmask_list.append(str(current_package.cpv))
-                            if "package.keywords" in filename:
-                                stable_list.append(str(current_package.cpv))
                             if "package.accept_keywords" in filename:
                                 stable_listNg.append(str(current_package.cpv))
                     else:
@@ -434,11 +429,6 @@ def parse_line(line, filename):
                         if (not checking_package_mask):
                             print_output(info, portage.output.yellow("\n" + fields[0] + ": ") + portage.output.red(
                                 "Not Installed"), current_package)
-                            if "package.keywords" in filename:
-                                if (special_line == False):
-                                    stable_list.append(str(current_package.cpv))
-                                else:
-                                    stable_list.append(original_line)
                             if "package.accept_keywords" in filename:
                                 if (special_line == False):
                                     stable_listNg.append(str(current_package.cpv))
@@ -454,10 +444,6 @@ def parse_line(line, filename):
                                          current_package)
         else:
             diffs_found = True
-            if "package.keywords" in filename:
-                stable_list.append(fields[0])
-                print(portage.output.red(
-                    "\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
             if "package.accept_keywords" in filename:
                 stable_listNg.append(fields[0])
                 print(portage.output.red(
@@ -481,7 +467,7 @@ def parse_line(line, filename):
     return diffs_found
 
 
-# adding support for etc/portage/package.keywords/<whatever>/package.keywords
+# adding support for etc/portage/package.accept_keywords/<whatever>
 def get_recursive_info(filename):
     # determine if filename is a directory
     if os.path.isdir(filename):
@@ -604,8 +590,6 @@ def parse_package_use(line, filename):
             # handle if no packages found
             if no_installed_package_found:
                 print(portage.output.red("\nNo installed packages found for " + check_pkg + "."))
-                if "package.keywords" in filename:
-                    stable_list.append(check_pkg)
                 if "package.accept_keywords" in filename:
                     stable_listNg.append(check_pkg)
                 unmask_list.append(check_pkg)
@@ -712,8 +696,6 @@ def parse_package_use(line, filename):
                                         print_output(info, portage.output.yellow(
                                             "\n" + orig_pkg_name + ": ") + portage.output.red("Not Installed"),
                                                      current_package)
-                                        if "package.keywords" in filename:
-                                            stable_list.append(check_pkg)
                                         if "package.accept_keywords" in filename:
                                             stable_listNg.append(check_pkg)
                                         unmask_list.append(check_pkg)
@@ -734,8 +716,6 @@ def parse_package_use(line, filename):
                         # if we are here, we have a =<category>/package-PN* and none of them are installed
                         print_output(info, portage.output.yellow("\n" + orig_pkg_name + ": ") +
                                      portage.output.red("Not Installed"), current_package)
-                        if "package.keywords" in filename:
-                            stable_list.append(check_pkg)
                         if "package.accept_keywords" in filename:
                             stable_listNg.append(check_pkg)
                         unmask_list.append(check_pkg)
@@ -748,8 +728,6 @@ def parse_package_use(line, filename):
             else:
                 print(portage.output.red(
                     "\nPackage: " + fields[0] + " not found. Please check " + filename + " to validate entry"))
-                if "package.keywords" in filename:
-                    stable_list.append(check_pkg)
                 if "package.accept_keywords" in filename:
                     stable_listNg.append(check_pkg)
                 unmask_list.append(check_pkg)
@@ -764,8 +742,6 @@ def parse_package_use(line, filename):
     if (package_installed == False):
         print_output(info, portage.output.yellow("\n" + orig_pkg_name + ": ") + portage.output.red(" Not Installed"))
 
-        if "package.keywords" in filename:
-            stable_list.append(check_pkg)
         if "package.accept_keywords" in filename:
             stable_listNg.append(check_pkg)
         if "package.use" in filename:
@@ -966,8 +942,6 @@ def check_tilde_masked_pkg(package_name, filename):
         ebuild_output = portage.output.yellow("\n" + package_name + ": ") + portage.output.red("Not Installed")
         if "package.unmask" in filename:
             unmask_list.append(orig_package_name)
-        if "package.keywords" in filename:
-            stable_list.append(orig_package_name)
         if "package.accept_keywords" in filename:
             stable_listNg.append(orig_package_name)
         print(ebuild_output + portage.output.brown(" : " + filename))
@@ -1010,8 +984,6 @@ def check_tilde_masked_pkg(package_name, filename):
 
             if "package.unmask" in filename:
                 unmask_list.append(orig_package_name)
-            if "package.keywords" in filename:
-                stable_list.append(orig_package_name)
             if "package.accept_keywords" in filename:
                 stable_listNg.append(orig_package_name)
             print_output(info, ebuild_output, package, filename)
@@ -1071,8 +1043,6 @@ def show_all_versions(pkg, filename):
                 print(portage.output.brown("Available: " + str(current_package.cpv) + " Keywords: " + keywords))
             else:
                 print(portage.output.green("Available: " + str(current_package.cpv) + " Keywords: " + keywords))
-                if "package.keywords" in filename:
-                    stable_list.append(str(current_package.cpv))
                 if "package.accept_keywords" in filename:
                     stable_listNg.append(str(current_package.cpv))
 
@@ -1465,9 +1435,9 @@ def print_output(log_level, output_string, package=None, filename=None):
         print(output_string)
 
 
-# remove stabled files that are no longer needed from package.keywords
+# remove stabled files that are no longer needed from package.accept_keywords
 # or package.mask
-# includes support for etc/portage/package.keywords/<whatever>/package.keywords
+# includes support for etc/portage/package.accept_keywords/<whatever>/package.accept_keywords
 def cleanFile(filename):
     removeDups = []
     removed_list = []
@@ -1481,11 +1451,7 @@ def cleanFile(filename):
     if (os.path.exists(filename) == False):
         return
 
-    if "package.keywords" in filename:
-        if (len(stable_list) == 0):
-            return
-        removeDups = stable_list
-    elif "package.env" in filename:
+    if "package.env" in filename:
         if (len(env_list) == 0):
             return
         removeDups = env_list
@@ -1600,6 +1566,9 @@ def check_for_any_installed_version(pkgs):
 
 # main
 if __name__ == "__main__":
+    if os.path.exists(USER_CONFIG_PATH + "/package.keywords"):
+        print("package.keywords found but it is deprecated, rename it to package.accept_keywords")
+        sys.exit(1)
 
     if len(sys.argv) == 1:
         print_usage()
@@ -1682,11 +1651,6 @@ if __name__ == "__main__":
 
     for cmd in cmdline:
         if cmd == "--keyword":
-            print(portage.output.bold("\npackage.keywords:"))
-            get_recursive_info(USER_CONFIG_PATH + "/package.keywords")
-            if "--fix" in cmdline:
-                cleanFile(USER_CONFIG_PATH + "/package.keywords")
-            print(portage.output.bold("Done\n"))
             print(portage.output.bold("\npackage.accept_keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.accept_keywords")
             if "--fix" in cmdline:
@@ -1723,8 +1687,6 @@ if __name__ == "__main__":
                 cleanFile(USER_CONFIG_PATH + "/package.env")
             print(portage.output.bold("Done\n"))
         elif cmd == "--all":
-            print(portage.output.bold("\npackage.keywords:"))
-            get_recursive_info(USER_CONFIG_PATH + "/package.keywords")
             print(portage.output.bold("\npackage.accept_keywords:"))
             get_recursive_info(USER_CONFIG_PATH + "/package.accept_keywords")
             print(portage.output.bold("\npackage.unmask:"))
@@ -1743,7 +1705,6 @@ if __name__ == "__main__":
             checking_env_file = True
             get_recursive_info(USER_CONFIG_PATH + "/package.env")
             if "--fix" in cmdline:
-                cleanFile(USER_CONFIG_PATH + "/package.keywords")
                 cleanFile(USER_CONFIG_PATH + "/package.accept_keywords")
                 cleanFile(USER_CONFIG_PATH + "/package.unmask")
                 cleanFile(USER_CONFIG_PATH + "/package.use")
