@@ -16,7 +16,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "3.2.7"
+__version__ = "3.2.8"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -220,7 +220,7 @@ def parse_line(line, filename):
     # package.env handling
     if (checking_env_file == True):
         if (len(fields) > 0):
-            package_exists = portage.portdb.xmatch("match-all", fields[0])
+            package_exists = find_package_match("match-all", fields[0])
             if (len(package_exists) == 0):
                 env_list.append(str(fields[0]))
                 print_output(info, portage.output.yellow("\n" + fields[0] + ": ") + portage.output.red("Not Installed"),
@@ -265,19 +265,20 @@ def parse_line(line, filename):
 
         # determine if the package exists
         try:
-            package_exists = portage.portdb.xmatch("match-all", fields[0])
+            package_exists = find_package_match("match-all", fields[0])
         except InvalidAtom:
             package_exists = False
 
         if package_exists:
             # return a Package List based on the cpv
-            query = Query(check_pkg)
-            query.query_type="simple"
+            #query = Query(check_pkg)
+            #query.query_type="simple"
             # query = Query(fields[0])
             pkgs = []
 
             try:
-                pkgs = query.smart_find(True, True, True, True, False, True)
+                # pkgs = query.smart_find(True, True, True, True, False, True)
+                pkgs = get_package_versions(check_pkg, False, "simple")
             except errors.GentoolkitException as err:
                 pass
 
@@ -381,12 +382,13 @@ def parse_line(line, filename):
                             print_output(info, "\n" + ebuild_output, current_package)
 
                     # go through all versions of a package
-                    query = Query(current_package.category + "/" + current_package.name)
+                    #query = Query(current_package.category + "/" + current_package.name)
 
                     all_pkgs = []
 
                     try:
-                        all_pkgs = query.smart_find(True, True, True, True, False, True)
+                        #all_pkgs = query.smart_find(True, True, True, True, False, True)
+                        all_pkgs = get_package_versions(current_package.category + "/" + current_package.name, False)
                     except errors.GentoolkitException as err:
                         print_output(debug, portage.output.blue(
                             "Package " + current_package.category + "/" + current_package.name + " not found."))
@@ -468,7 +470,7 @@ def parse_line(line, filename):
                 if package_name[0] in atom_check:
                     package_name = package_name[1:]
                 port = Package(package_name)
-                package_exists = portage.portdb.xmatch("match-all", package_name)
+                package_exists = find_package_match("match-all", package_name)
                 # if package is not installed or does not exist remove it
                 if ((not package_exists) or (not port.is_installed())):
                     print(portage.output.red(
@@ -500,8 +502,11 @@ def get_info(filename):
     filedescriptor = None
 
     try:
-        filedescriptor = open(filename)
-        for line in filedescriptor.readlines():
+        # read file into memory and then process
+        with open(filename, 'r') as file:
+            lines = file.readlines()
+
+        for line in lines:
             use_expand_found = False
             line = line.strip()
             if len(line) <= 0:
@@ -582,11 +587,12 @@ def parse_package_use(line, filename):
         # check_pkg = "=dev-qt/qtwebkit-4.8*"
 
         if check_pkg.find("/*") >= 0:
-            query = Query(check_pkg)
-            query.query_type="simple"
+            #query = Query(check_pkg)
+            #query.query_type="simple"
             pkgs = []
             try:
-                pkgs = query.smart_find(True, True, True, True, False, True)
+                #pkgs = query.smart_find(True, True, True, True, False, True)
+                pkgs = get_package_versions(check_pkg, False, "simple")
             except errors.GentoolkitException as err:
                 print_output(debug, portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
                 return False
@@ -628,11 +634,12 @@ def parse_package_use(line, filename):
                 or (orig_pkg_name.find(">=") >= 0)
                 or (orig_pkg_name.find(">") >= 0)):
 
-            query = Query(check_pkg)
-            query.query_type="simple"
+            #query = Query(check_pkg)
+            #query.query_type="simple"
             pkgs = []
             try:
-                pkgs = query.smart_find(True, True, True, True, False, True)
+                #pkgs = query.smart_find(True, True, True, True, False, True)
+                pkgs = get_package_versions(check_pkg, False, "simple")
             except errors.GentoolkitException as err:
                 print_output(debug, portage.output.blue("parse_package_use: Package " + check_pkg + " not found."))
                 return False
@@ -673,14 +680,15 @@ def parse_package_use(line, filename):
             # look for any version of check_pkg installed as there is
             # no version specified in package.use
             print_output(debug, portage.output.blue("check_pkg is : " + check_pkg))
-            package_exists = portage.portdb.xmatch("match-all", check_pkg)
+            package_exists = find_package_match("match-all", check_pkg)
             if package_exists:
                 # get all package versions
-                query = Query(check_pkg)
-                query.query_type="simple"
+                #query = Query(check_pkg)
+                #query.query_type="simple"
                 pkgs = []
                 try:
-                    pkgs = query.smart_find(True, True, True, True, False, True)
+                    #pkgs = query.smart_find(True, True, True, True, False, True)
+                    pkgs = get_package_versions(check_pkg, False, "simple")
                 except errors.GentoolkitException as err:
                     print_output(debug, portage.output.blue("Package " + check_pkg + " not found."))
 
@@ -879,12 +887,13 @@ def filter_keywords(keywords):
 def is_any_cpv_keyword_masked(package_name):
     print_output(debug, portage.output.blue("inside is_any_cpv_keyword_masked: " + package_name))
 
-    query = Query(package_name, True)
-    query.query_type="simple"
+    #query = Query(package_name, True)
+    #query.query_type="simple"
 
     packages = []
     try:
-        packages = query.smart_find(True, True, True, True, False, True)
+        #packages = query.smart_find(True, True, True, True, False, True)
+        package=get_package_versions(package_name, True, "simple")
     except errors.GentoolkitException as err:
         print_output(debug, portage.output.blue("Package " + package_name + " not found."))
 
@@ -948,12 +957,13 @@ def check_tilde_masked_pkg(package_name, filename):
     print_output(debug, portage.output.blue("check_tilde_maskd_pkg: orig_package-name is " + orig_package_name))
     print_output(debug, portage.output.blue("check_tilde_maskd_pkg: package_name is " + package_name))
 
-    query = Query(package_name, True)
-    query.query_type="simple"
+    #query = Query(package_name, True)
+    #query.query_type="simple"
 
     packages = []
     try:
-        packages = query.smart_find(True, True, True, True, False, True)
+        #packages = query.smart_find(True, True, True, True, False, True)
+        packages = get_package_versions(package_name, True, "simple")
     except errors.GentoolkitException as err:
         print_output(debug, portage.output.blue("Package " + package_name + " not found."))
 
@@ -1046,13 +1056,14 @@ def show_all_versions(pkg, filename):
                 if pkg_check == package:
                     is_package_masked = True
 
-    query = Query(package)
-    query.query_type="simple"
+    #query = Query(package)
+    #query.query_type="simple"
 
     all_pkgs = []
 
     try:
-        all_pkgs = query.smart_find(True, True, True, True, False, True)
+        #all_pkgs = query.smart_find(True, True, True, True, False, True)
+        all_pkgs = get_package_versions(package, False, "simple")
     except errors.GentoolkitException as err:
         print_output(debug, portage.output.blue("Package " + package + " not found."))
 
@@ -1597,6 +1608,19 @@ def check_for_any_installed_version(pkgs):
 
     return False
 
+@functools.lru_cache(maxsize=512)
+def get_package_versions(cpv, isRegEx=False, queryType=None):
+    query = Query(cpv, isRegEx)
+
+    if (queryType != None):
+        query.query_type = queryType
+
+    return query.smart_find(True, True, True, True, False, True)
+
+@functools.lru_cache(maxsize=512)
+def find_package_match(match_type, package_name):
+    package_exists = portage.portdb.xmatch(match_type, package_name)
+    return package_exists
 
 # main
 if __name__ == "__main__":
