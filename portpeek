@@ -15,7 +15,7 @@
 
 __author__ = "Michael Pagano"
 __email__ = "mpagano@gentoo.org"
-__version__ = "3.2.8"
+__version__ = "3.2.9"
 __productname__ = "portpeek"
 __description__ = "Displays user unmasked ebuilds and installable options from the portage tree"
 
@@ -476,7 +476,7 @@ def get_recursive_info(filename):
         # get listing of directory
         filenames = os.listdir(filename)
         for file_name in filenames:
-            if not file_name.startswith('.'):
+            if not file_name.startswith('.') and not file_name.endswith('~'):
                 get_recursive_info(filename + os.path.sep + file_name)
     else:
         get_info(filename)
